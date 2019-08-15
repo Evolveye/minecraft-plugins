@@ -12,7 +12,6 @@ data class ChatInfo(
   val prefix:Char,
   val nickColor:ChatColor,
   val messageColor:ChatColor,
-  val signsColor:ChatColor,
   val message:String
 )
 
@@ -29,18 +28,18 @@ public class App: JavaPlugin(), Listener {
 
   fun getChatFormat( nickname:String, message:String ):String {
     val chatInfo = when ( message[ 0 ] ) {
-      '.' -> ChatInfo( '.', ChatColor.WHITE, ChatColor.DARK_AQUA, ChatColor.DARK_BLUE, message.substring( 1 ) )
-      '!' -> ChatInfo( '!', ChatColor.WHITE, ChatColor.GRAY, ChatColor.DARK_GRAY, message.substring( 1 ) )
-      '@' -> ChatInfo( '@', ChatColor.WHITE, ChatColor.GOLD, ChatColor.YELLOW, message.substring( 1 ) )
-      '$' -> ChatInfo( '$', ChatColor.GREEN, ChatColor.WHITE, ChatColor.DARK_GRAY, message.substring( 1 ) )
+      '.' -> ChatInfo( '.', ChatColor.WHITE, ChatColor.DARK_AQUA, message.substring( 1 ) )
+      '!' -> ChatInfo( '!', ChatColor.WHITE, ChatColor.GRAY, message.substring( 1 ) )
+      '@' -> ChatInfo( '@', ChatColor.WHITE, ChatColor.GOLD, message.substring( 1 ) )
+      '$' -> ChatInfo( '$', ChatColor.GREEN, ChatColor.WHITE, message.substring( 1 ) )
 
-      else -> ChatInfo( '!', ChatColor.WHITE, ChatColor.GRAY, ChatColor.DARK_GRAY, message )
+      else -> ChatInfo( '!', ChatColor.WHITE, ChatColor.GRAY, message )
     }
 
     return (""
       + "${chatInfo.messageColor}[${chatInfo.prefix}]"
       + "${chatInfo.nickColor} ${nickname}"
-      + "${chatInfo.signsColor} >>"
+      + "${ChatColor.DARK_GRAY} >>"
       + "${chatInfo.messageColor} ${chatInfo.message}"
     )
   }
@@ -58,7 +57,8 @@ public class App: JavaPlugin(), Listener {
     }
     else {
       e.setJoinMessage( ""
-        + "${ChatColor.DARK_GRAY}[${ChatColor.WHITE}+${ChatColor.GREEN}] Gracz"
+        + "${ChatColor.DARK_GRAY}[${ChatColor.WHITE}+${ChatColor.DARK_GRAY}]"
+        + "${ChatColor.GREEN} Gracz"
         + "${ChatColor.WHITE} ${e.getPlayer().getDisplayName()}"
         + "${ChatColor.GREEN} wszedł po raz pierwszy na serwer! Życzymy miłej gry"
       )
@@ -86,10 +86,12 @@ public class App: JavaPlugin(), Listener {
 
   @EventHandler
   public fun onConsoleSay( e:ServerCommandEvent ) {
-    if ( e.getCommand() != "say" ) return
+    val command = e.getCommand()
+
+    if ( command.substring( 0, 3 ) != "say" ) return
 
     e.setCancelled( true )
 
-    Bukkit.broadcastMessage( getChatFormat( e.getSender().getName(), "$${e.getCommand().substring( 4 )}" ) )
+    Bukkit.broadcastMessage( getChatFormat( e.getSender().getName(), "$${command.substring( 0, 3 )}" ) )
   }
 }
