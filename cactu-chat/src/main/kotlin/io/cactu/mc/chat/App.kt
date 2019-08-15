@@ -92,6 +92,6 @@ public class App: JavaPlugin(), Listener {
 
     e.setCancelled( true )
 
-    Bukkit.broadcastMessage( getChatFormat( e.getSender().getName(), "$${command.substring( 0, 3 )}" ) )
+    Bukkit.broadcastMessage( getChatFormat( e.getSender().getName(), "$${command.substring( 3 )}" ) )
   }
 }
