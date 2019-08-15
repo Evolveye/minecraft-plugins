@@ -7,6 +7,14 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.player.*
 import org.bukkit.ChatColor
 
+data class ChatInfo(
+  val prefix:Char,
+  val nickColor:ChatColor,
+  val messageColor:ChatColor,
+  val signsColor:ChatColor,
+  val message:String
+)
+
 public class App: JavaPlugin(), Listener {
   override fun onEnable() {
     logger.info( "Plugin enabled" )
@@ -23,6 +31,25 @@ public class App: JavaPlugin(), Listener {
 
   @EventHandler
   public fun onChat( e:AsyncPlayerChatEvent ) {
-    e.setFormat( "${ChatColor.GRAY}%s${ChatColor.RESET}:${ChatColor.GRAY} %s" )
+    val chatModesPrefixex = ".!@"
+    val message = e.getMessage()
+
+    if ( chatModesPrefixex.contains( message[ 0 ] ) && message.length == 1 )
+      return e.setCancelled( true )
+
+    val chatInfo = when ( message[ 0 ] ) {
+      '.' -> ChatInfo( '.', ChatColor.WHITE, ChatColor.DARK_AQUA, ChatColor.DARK_BLUE, message.substring( 1 ) )
+      '!' -> ChatInfo( '!', ChatColor.WHITE, ChatColor.GRAY, ChatColor.DARK_GRAY, message.substring( 1 ) )
+      '@' -> ChatInfo( '@', ChatColor.WHITE, ChatColor.GOLD, ChatColor.YELLOW, message.substring( 1 ) )
+
+      else -> ChatInfo( '!', ChatColor.WHITE, ChatColor.GRAY, ChatColor.DARK_GRAY, message )
+    }
+
+    e.setFormat( ""
+      + "${chatInfo.signsColor}[${chatInfo.prefix}]"
+      + "${chatInfo.nickColor} %s"
+      + "${chatInfo.signsColor} >>"
+      + "${chatInfo.messageColor} ${chatInfo.message}"
+    )
   }
 }

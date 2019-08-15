@@ -1,5 +1,7 @@
 .vscode
 
+*temp*
+
 */*.*
 
 !*/pom.xml
