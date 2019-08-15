@@ -49,7 +49,29 @@ public class App: JavaPlugin(), Listener {
   public fun onJoin( e:PlayerJoinEvent ) {
     val player = e.getPlayer()
 
-    player.sendMessage( "Dzień dobry ${e.getPlayer().getName()}" )
+    if ( player.hasPlayedBefore() ) {
+      e.setJoinMessage( ""
+        + "${ChatColor.DARK_GRAY}[${ChatColor.WHITE}+${ChatColor.DARK_GRAY}] Gracz"
+        + "${ChatColor.WHITE} ${e.getPlayer().getDisplayName()}"
+        + "${ChatColor.DARK_GRAY} dołączył do gry"
+      )
+    }
+    else {
+      e.setJoinMessage( ""
+        + "${ChatColor.DARK_GRAY}[${ChatColor.WHITE}+${ChatColor.GREEN}] Gracz"
+        + "${ChatColor.WHITE} ${e.getPlayer().getDisplayName()}"
+        + "${ChatColor.GREEN} wszedł po raz pierwszy na serwer! Życzymy miłej gry"
+      )
+    }
+  }
+
+  @EventHandler
+  public fun onJoin( e:PlayerQuitEvent ) {
+    e.setQuitMessage( ""
+      + "${ChatColor.DARK_GRAY}[${ChatColor.WHITE}-${ChatColor.DARK_GRAY}] Gracz"
+      + "${ChatColor.WHITE} ${e.getPlayer().getDisplayName()}"
+      + "${ChatColor.DARK_GRAY} wyszedł z gry"
+    )
   }
 
   @EventHandler
