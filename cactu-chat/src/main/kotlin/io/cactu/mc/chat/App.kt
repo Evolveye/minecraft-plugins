@@ -45,6 +45,42 @@ public class App: JavaPlugin(), Listener {
     server.pluginManager.registerEvents( this, this )
   }
 
+  override fun onTabComplete( sender:CommandSender, command:Command, label:String, args:Array<String> ):List<String>? {
+    if ( label == "m" && args.size > 1 ) return listOf()
+
+    return null
+  }
+
+  override fun onCommand( sender:CommandSender, command:Command, label:String, args:Array<String> ):Boolean {
+    if ( sender !is Player ) return false
+
+    val player:Player = sender
+
+    if ( label == "m" ) {
+      if ( args.size > 0 ) {
+        var receiver = server.getPlayer( args[ 0 ] )
+
+        if ( receiver != null ) {
+          if ( args.size > 1 ) {
+            val message = args.slice( 1..(args.size - 1) ).joinToString( " " )
+
+            player.sendMessage( message )
+            receiver.sendMessage( message )
+
+            return true
+          }
+          else player.sendMessage( "Złe użycie polecenia /m: Nie podałeś wiadomości" )
+        }
+        else player.sendMessage( "Złe użycie polecenia /m: Podany odbiorca nie istnieje" )
+      }
+      else player.sendMessage( "Złe użycie polecenia /m: Nie określiłeś gracza" )
+    }
+
+    player.sendMessage( "Składnia: /m <gracz> <...treść>" )
+
+    return true
+  }
+
   @EventHandler
   public fun onJoin( e:PlayerJoinEvent ) {
     val player = e.player

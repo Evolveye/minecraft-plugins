@@ -1,3 +1,8 @@
 main: io.cactu.mc.chat.App
 name: Cactu-chat
 version: 0.7
+
+commands:
+  m:
+    description: Wyślij prywatną wiadomosć
+    usage: /<command> <gracz> <...treść>
