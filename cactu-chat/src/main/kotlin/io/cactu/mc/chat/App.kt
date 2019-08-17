@@ -83,15 +83,18 @@ public class App: JavaPlugin(), Listener {
       if ( args.size > 0 ) {
         var receiver = server.getPlayer( args[ 0 ] )
 
-        if ( receiver != null ) {
+        if ( args[ 0 ] == "CONSOLE" || receiver != null ) {
           if ( args.size > 1 ) {
             val senderName = if ( sender is Player ) sender.displayName else sender.name
+            val reveiverName = if ( receiver is Player ) receiver.displayName else args[ 0 ]
             val message = ">${ChatColor.GRAY}${args.slice( 1..(args.size - 1) ).joinToString( " " )}"
-            val nicknameA = "${ChatColor.GREEN}[Ty > ${ChatColor.WHITE}${receiver.displayName}${ChatColor.GREEN}]"
+            val nicknameA = "${ChatColor.GREEN}[Ty > ${ChatColor.WHITE}${reveiverName}${ChatColor.GREEN}]"
             val nicknameB = "${ChatColor.GREEN}[${ChatColor.WHITE}${senderName}${ChatColor.GREEN} > Ty]"
 
             sender.sendMessage( createChatMessage( nicknameA, message ) )
-            receiver.sendMessage( createChatMessage( nicknameB, message ) )
+
+            if ( receiver is Player ) receiver.sendMessage( createChatMessage( nicknameB, message ) )
+            else logger.info( createChatMessage( nicknameB, message )  )
 
             return true
           }
@@ -104,11 +107,11 @@ public class App: JavaPlugin(), Listener {
       sender.sendMessage( createChatError( "Składnia: &1/m <gracz> <...treść>" ) )
     }
     else if ( label == "?" || label == "help" || label == "pomoc" ) {
-      sender.sendMessage( replaceVarsToColor( "Oficjalnie dostępne na serwerze polecenia:"
-        + "\n /m: Prywatna wiadomość"
-        + "\n /r: Odpowiedź na prywatną wiadomość"
-        + "\n /a: Spójrz na mapę osiagnięć"
-        + "\n /mod: Wyślij zgłoszenie (np. dotyczące błędu) do administracji"
+      sender.sendMessage( createChatInfo( '?', "&3&bOficjalnie dostępne na serwerze polecenia:"
+        + "\n &3&b/m&r&7: Prywatna wiadomość"
+        + "\n &3&b/r&r&7: Odpowiedź na prywatną wiadomość"
+        + "\n &3&b/a&r&7: Spójrz na mapę osiągnięć"
+        + "\n &3&b/mod&r&7: Wyślij zgłoszenie (np. dotyczące błędu) do administracji"
         + "\n  Zgłoszenie będzie zawierać informacje o Tobie, i lokalizacji zgłoszenia"
       ) )
     }
