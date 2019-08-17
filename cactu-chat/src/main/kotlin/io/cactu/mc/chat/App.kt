@@ -73,38 +73,45 @@ public class App: JavaPlugin(), Listener {
   }
 
   override fun onTabComplete( sender:CommandSender, command:Command, label:String, args:Array<String> ):List<String>? {
-    if ( label == "m" && args.size > 1 ) return listOf()
+    if ( label == "m" && args.size > 1 ) return listOf( "<treść>" )
 
     return null
   }
 
   override fun onCommand( sender:CommandSender, command:Command, label:String, args:Array<String> ):Boolean {
-    logger.info( sender.name )
-    if ( sender !is Player ) return false
-
-    val player:Player = sender
-
     if ( label == "m" ) {
       if ( args.size > 0 ) {
         var receiver = server.getPlayer( args[ 0 ] )
 
         if ( receiver != null ) {
           if ( args.size > 1 ) {
+            val senderName = if ( sender is Player ) sender.displayName else sender.name
             val message = ">${ChatColor.GRAY}${args.slice( 1..(args.size - 1) ).joinToString( " " )}"
+            val nicknameA = "${ChatColor.GREEN}[Ty > ${ChatColor.WHITE}${receiver.displayName}${ChatColor.GREEN}]"
+            val nicknameB = "${ChatColor.GREEN}[${ChatColor.WHITE}${senderName}${ChatColor.GREEN} > Ty]"
 
-            player.sendMessage( createChatMessage( "${ChatColor.GREEN}[Ty > ${ChatColor.WHITE}${receiver.displayName}${ChatColor.GREEN}]", message ) )
-            receiver.sendMessage( createChatMessage( "${ChatColor.GREEN}[${ChatColor.WHITE}${player.displayName}${ChatColor.GREEN} > Ty]", message ) )
+            sender.sendMessage( createChatMessage( nicknameA, message ) )
+            receiver.sendMessage( createChatMessage( nicknameB, message ) )
 
             return true
           }
-          else player.sendMessage( createChatError( "Złe użycie polecenia /m: &1Nie podałeś wiadomości" ) )
+          else sender.sendMessage( createChatError( "Złe użycie polecenia /m: &1Nie podałeś wiadomości" ) )
         }
-        else player.sendMessage( createChatError( "Złe użycie polecenia /m: &1Podany odbiorca nie istnieje" ) )
+        else sender.sendMessage( createChatError( "Złe użycie polecenia /m: &1Podany odbiorca nie istnieje" ) )
       }
-      else player.sendMessage( createChatError( "Złe użycie polecenia /m: &1Nie określiłeś gracza" ) )
-    }
+      else sender.sendMessage( createChatError( "Złe użycie polecenia /m: &1Nie określiłeś gracza" ) )
 
-    player.sendMessage( createChatError( "Składnia: &1/m <gracz> <...treść>" ) )
+      sender.sendMessage( createChatError( "Składnia: &1/m <gracz> <...treść>" ) )
+    }
+    else if ( label == "?" || label == "help" || label == "pomoc" ) {
+      sender.sendMessage( replaceVarsToColor( "Oficjalnie dostępne na serwerze polecenia:"
+        + "\n /m: Prywatna wiadomość"
+        + "\n /r: Odpowiedź na prywatną wiadomość"
+        + "\n /a: Spójrz na mapę osiagnięć"
+        + "\n /mod: Wyślij zgłoszenie (np. dotyczące błędu) do administracji"
+        + "\n  Zgłoszenie będzie zawierać informacje o Tobie, i lokalizacji zgłoszenia"
+      ) )
+    }
 
     return true
   }

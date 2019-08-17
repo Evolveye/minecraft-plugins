@@ -6,3 +6,9 @@ commands:
   m:
     description: Wyślij prywatną wiadomosć
     usage: /<command> <gracz> <...treść>
+  "?":
+    description: Pomoc
+  help:
+    description: Pomoc
+  pomoc:
+    description: Pomoc
