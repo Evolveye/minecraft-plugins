@@ -13,23 +13,50 @@ import org.bukkit.command.Command
 
 data class ChatInfo(
   val prefix:Char,
-  val nickColor:ChatColor,
-  val messageColor:ChatColor,
-  val message:String
+  val message:String,
+  val messageColor:ChatColor
 )
-fun getChatFormat( nickname:String, message:String ):String {
-  val chatInfo = when ( message[ 0 ] ) {
-    '.' -> ChatInfo( '.', ChatColor.WHITE, ChatColor.DARK_AQUA, message.substring( 1 ) )
-    '!' -> ChatInfo( '!', ChatColor.WHITE, ChatColor.GRAY, message.substring( 1 ) )
-    '@' -> ChatInfo( '@', ChatColor.WHITE, ChatColor.GOLD, message.substring( 1 ) )
-    '$' -> ChatInfo( '$', ChatColor.GREEN, ChatColor.WHITE, message.substring( 1 ) )
 
-    else -> ChatInfo( '!', ChatColor.WHITE, ChatColor.GRAY, message )
+fun replaceVarsToColor( message:String ):String = message
+  .replace( "&0", "${ChatColor.BLACK}" )
+  .replace( "&1", "${ChatColor.WHITE}" )
+  .replace( "&2", "${ChatColor.BLUE}" )
+  .replace( "&D2", "${ChatColor.DARK_BLUE}" )
+  .replace( "&3", "${ChatColor.GREEN}" )
+  .replace( "&D3", "${ChatColor.DARK_GREEN}" )
+  .replace( "&4", "${ChatColor.AQUA}" )
+  .replace( "&D4", "${ChatColor.DARK_AQUA}" )
+  .replace( "&5", "${ChatColor.RED}" )
+  .replace( "&D5", "${ChatColor.DARK_RED}" )
+  .replace( "&6", "${ChatColor.LIGHT_PURPLE}" )
+  .replace( "&D6", "${ChatColor.DARK_PURPLE}" )
+  .replace( "&7", "${ChatColor.GRAY}" )
+  .replace( "&D7", "${ChatColor.DARK_GRAY}" )
+  .replace( "&8", "${ChatColor.YELLOW}" )
+  .replace( "&9", "${ChatColor.GOLD}" )
+  .replace( "&b", "${ChatColor.BOLD}" )
+  .replace( "&s", "${ChatColor.STRIKETHROUGH}" )
+  .replace( "&u", "${ChatColor.UNDERLINE}" )
+  .replace( "&i", "${ChatColor.ITALIC}" )
+  .replace( "&r", "${ChatColor.RESET}" )
+fun createChatInfo( sign:Char, message:String ) =
+  replaceVarsToColor( "${ChatColor.DARK_GRAY}[${ChatColor.WHITE}${sign}${ChatColor.DARK_GRAY}] ${message}" )
+fun createChatError( message:String ) =
+  replaceVarsToColor( "${ChatColor.DARK_GRAY}[${ChatColor.RED}!!!${ChatColor.DARK_GRAY}] ${ChatColor.RED}${message}" )
+fun createChatMessage( nickname:String, message:String ):String {
+  val default = ChatInfo( '!', message, ChatColor.GRAY )
+  val chatInfo = if ( message.length == 1 ) default else when ( message[ 0 ] ) {
+    '.' -> ChatInfo( '.', message.substring( 1 ), ChatColor.DARK_AQUA )
+    '!' -> ChatInfo( '!', message.substring( 1 ), ChatColor.GRAY )
+    '@' -> ChatInfo( '@', message.substring( 1 ), ChatColor.GOLD )
+    '>' -> ChatInfo( '>', message.substring( 1 ), ChatColor.GRAY )
+
+    else -> default
   }
 
   return (""
     + "${chatInfo.messageColor}[${chatInfo.prefix}]"
-    + "${chatInfo.nickColor} ${nickname}"
+    + "${ChatColor.WHITE} ${nickname}"
     + "${ChatColor.DARK_GRAY} >>"
     + "${chatInfo.messageColor} ${chatInfo.message}"
   )
@@ -52,6 +79,7 @@ public class App: JavaPlugin(), Listener {
   }
 
   override fun onCommand( sender:CommandSender, command:Command, label:String, args:Array<String> ):Boolean {
+    logger.info( sender.name )
     if ( sender !is Player ) return false
 
     val player:Player = sender
@@ -62,21 +90,21 @@ public class App: JavaPlugin(), Listener {
 
         if ( receiver != null ) {
           if ( args.size > 1 ) {
-            val message = args.slice( 1..(args.size - 1) ).joinToString( " " )
+            val message = ">${ChatColor.GRAY}${args.slice( 1..(args.size - 1) ).joinToString( " " )}"
 
-            player.sendMessage( message )
-            receiver.sendMessage( message )
+            player.sendMessage( createChatMessage( "${ChatColor.GREEN}[Ty > ${ChatColor.WHITE}${receiver.displayName}${ChatColor.GREEN}]", message ) )
+            receiver.sendMessage( createChatMessage( "${ChatColor.GREEN}[${ChatColor.WHITE}${player.displayName}${ChatColor.GREEN} > Ty]", message ) )
 
             return true
           }
-          else player.sendMessage( "Złe użycie polecenia /m: Nie podałeś wiadomości" )
+          else player.sendMessage( createChatError( "Złe użycie polecenia /m: &1Nie podałeś wiadomości" ) )
         }
-        else player.sendMessage( "Złe użycie polecenia /m: Podany odbiorca nie istnieje" )
+        else player.sendMessage( createChatError( "Złe użycie polecenia /m: &1Podany odbiorca nie istnieje" ) )
       }
-      else player.sendMessage( "Złe użycie polecenia /m: Nie określiłeś gracza" )
+      else player.sendMessage( createChatError( "Złe użycie polecenia /m: &1Nie określiłeś gracza" ) )
     }
 
-    player.sendMessage( "Składnia: /m <gracz> <...treść>" )
+    player.sendMessage( createChatError( "Składnia: &1/m <gracz> <...treść>" ) )
 
     return true
   }
@@ -84,41 +112,23 @@ public class App: JavaPlugin(), Listener {
   @EventHandler
   public fun onJoin( e:PlayerJoinEvent ) {
     val player = e.player
+    val playerName = player.displayName
 
-    if ( player.hasPlayedBefore() ) {
-      e.joinMessage = (""
-        + "${ChatColor.DARK_GRAY}[${ChatColor.WHITE}+${ChatColor.DARK_GRAY}] Gracz"
-        + "${ChatColor.WHITE} ${player.displayName}"
-        + "${ChatColor.DARK_GRAY} dołączył do gry"
-      )
-    }
-    else {
-      e.joinMessage = (""
-        + "${ChatColor.DARK_GRAY}[${ChatColor.WHITE}+${ChatColor.DARK_GRAY}]"
-        + "${ChatColor.GREEN} Gracz"
-        + "${ChatColor.WHITE} ${player.displayName}"
-        + "${ChatColor.GREEN} wszedł po raz pierwszy na serwer! Życzymy miłej gry"
-      )
-    }
+    if ( player.hasPlayedBefore() ) e.joinMessage = createChatInfo('+', "Gracz &1${playerName}&D7 dołączył do gry" )
+    else e.joinMessage = createChatInfo('+', "&3Gracz &1${playerName}&3 wszedł po raz pierwszy na serwer! Życzymy miłej gry" )
   }
 
   @EventHandler
-  public fun onJoin( e:PlayerQuitEvent ) {
-    e.quitMessage = (""
-      + "${ChatColor.DARK_GRAY}[${ChatColor.WHITE}-${ChatColor.DARK_GRAY}] Gracz"
-      + "${ChatColor.WHITE} ${e.player.displayName}"
-      + "${ChatColor.DARK_GRAY} wyszedł z gry"
-    )
+  public fun onQuit( e:PlayerQuitEvent ) {
+    e.quitMessage = createChatInfo('-', "Gracz &1${e.player.displayName}&D7 wyszedł z gry" )
   }
 
   @EventHandler
   public fun onChat( e:AsyncPlayerChatEvent ) {
-    val message = e.message
+    val player = e.player
+    val message = if ( player.isOp ) replaceVarsToColor( e.message ) else e.message
 
-    if ( chatModes.player.contains( message[ 0 ] ) && message.length == 1 )
-      return e.setCancelled( true )
-
-    e.format = ( getChatFormat( e.player.displayName, message ) )
+    e.format = createChatMessage( player.displayName, message )
   }
 
   @EventHandler
@@ -129,6 +139,9 @@ public class App: JavaPlugin(), Listener {
 
     e.setCancelled( true )
 
-    Bukkit.broadcastMessage( getChatFormat( e.sender.name, "$${command.substring( 4 )}" ) )
+    Bukkit.broadcastMessage( createChatMessage(
+      replaceVarsToColor( "&3${e.sender.name}" ),
+      replaceVarsToColor( "!${command.substring( 4 )}" )
+    ) )
   }
 }
