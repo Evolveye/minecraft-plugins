@@ -40,9 +40,9 @@ fun replaceVarsToColor( message:String ):String = message
   .replace( "&i", "${ChatColor.ITALIC}" )
   .replace( "&r", "${ChatColor.RESET}" )
 fun createChatInfo( sign:Char, message:String ) =
-  replaceVarsToColor( "${ChatColor.DARK_GRAY}[${ChatColor.WHITE}${sign}${ChatColor.DARK_GRAY}] ${message}" )
+  replaceVarsToColor( "${ChatColor.DARK_GRAY}[${ChatColor.WHITE}$sign${ChatColor.DARK_GRAY}] $message" )
 fun createChatError( message:String ) =
-  replaceVarsToColor( "${ChatColor.DARK_GRAY}[${ChatColor.RED}!!!${ChatColor.DARK_GRAY}] ${ChatColor.RED}${message}" )
+  replaceVarsToColor( "${ChatColor.DARK_GRAY}[${ChatColor.RED}!!!${ChatColor.DARK_GRAY}] ${ChatColor.RED}$message" )
 fun createChatMessage( nickname:String, message:String ):String {
   val default = ChatInfo( '!', message, ChatColor.GRAY )
   val chatInfo = if ( message.length == 1 ) default else when ( message[ 0 ] ) {
@@ -56,7 +56,7 @@ fun createChatMessage( nickname:String, message:String ):String {
 
   return (""
     + "${chatInfo.messageColor}[${chatInfo.prefix}]"
-    + "${ChatColor.WHITE} ${nickname}"
+    + "${ChatColor.WHITE} $nickname"
     + "${ChatColor.DARK_GRAY} >>"
     + "${chatInfo.messageColor} ${chatInfo.message}"
   )
@@ -73,7 +73,7 @@ public class App: JavaPlugin(), Listener {
   }
 
   override fun onTabComplete( sender:CommandSender, command:Command, label:String, args:Array<String> ):List<String>? {
-    if ( label == "m" && args.size > 1 ) return listOf( "<treść>" )
+    if ( label == "m" && args.size > 1 ) return listOf()
 
     return null
   }
@@ -88,8 +88,8 @@ public class App: JavaPlugin(), Listener {
             val senderName = if ( sender is Player ) sender.displayName else sender.name
             val reveiverName = if ( receiver is Player ) receiver.displayName else args[ 0 ]
             val message = ">${ChatColor.GRAY}${args.slice( 1..(args.size - 1) ).joinToString( " " )}"
-            val nicknameA = "${ChatColor.GREEN}[Ty > ${ChatColor.WHITE}${reveiverName}${ChatColor.GREEN}]"
-            val nicknameB = "${ChatColor.GREEN}[${ChatColor.WHITE}${senderName}${ChatColor.GREEN} > Ty]"
+            val nicknameA = "${ChatColor.GREEN}[Ty > ${ChatColor.WHITE}$reveiverName${ChatColor.GREEN}]"
+            val nicknameB = "${ChatColor.GREEN}[${ChatColor.WHITE}$senderName${ChatColor.GREEN} > Ty]"
 
             sender.sendMessage( createChatMessage( nicknameA, message ) )
 
@@ -124,8 +124,8 @@ public class App: JavaPlugin(), Listener {
     val player = e.player
     val playerName = player.displayName
 
-    if ( player.hasPlayedBefore() ) e.joinMessage = createChatInfo('+', "Gracz &1${playerName}&D7 dołączył do gry" )
-    else e.joinMessage = createChatInfo('+', "&3Gracz &1${playerName}&3 wszedł po raz pierwszy na serwer! Życzymy miłej gry" )
+    if ( player.hasPlayedBefore() ) e.joinMessage = createChatInfo('+', "Gracz &1$playerName&D7 dołączył do gry" )
+    else e.joinMessage = createChatInfo('+', "&3Gracz &1$playerName&3 wszedł po raz pierwszy na serwer! Życzymy miłej gry" )
   }
 
   @EventHandler
