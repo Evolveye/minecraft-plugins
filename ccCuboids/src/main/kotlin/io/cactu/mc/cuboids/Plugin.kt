@@ -11,7 +11,7 @@ import org.bukkit.event.player.PlayerMoveEvent
 import java.sql.DriverManager
 import java.sql.Connection
 import java.sql.ResultSet
-import io.cactu.mc.chat.Plugin as ccChat
+import io.cactu.mc.chat.createChatInfo
 
 data class CuboidChunk( val chunk:Chunk, val cuboidId:String ) {
   val playersInside = mutableListOf<Player>()
@@ -57,6 +57,13 @@ class Plugin: JavaPlugin(), Listener {
   }
 
   @EventHandler
+  public fun onChunkUnload( e:ChunkUnloadEvent ) {
+    val coords = Pair( e.chunk.getX(), e.chunk.getZ() )
+
+    if ( cuboidsNearPlayers.containsKey( coords ) ) cuboidsNearPlayers.remove( coords )
+  }
+
+  @EventHandler
   public fun onPlayerMove( e:PlayerMoveEvent ) {
     val playerChunk = e.to?.chunk
     val playerLastChunk = e.from.chunk
@@ -68,7 +75,10 @@ class Plugin: JavaPlugin(), Listener {
 
     if ( !((cuboidChunkFrom == null).xor( cuboidChunkTo == null )) ) return
 
-    if ( cuboidChunkFrom == null ) e.player.sendMessage( "wkroczyles na teren cuboidu ${cuboidChunkTo!!.cuboidId}" )
-    else e.player.sendMessage( "Wyszedles z cuboidu ${cuboidChunkFrom.cuboidId}" )
+    val message =
+      if ( cuboidChunkFrom == null ) "Wszedłeś na region o nazwie: &7${cuboidChunkTo!!.cuboidId}"
+      else "Wyszedleś z regionu o nazwie: &7${cuboidChunkFrom.cuboidId}"
+
+    e.player.sendMessage( createChatInfo( 'i', message ) )
   }
 }
