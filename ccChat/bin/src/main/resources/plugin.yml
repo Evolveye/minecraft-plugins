@@ -1,0 +1,16 @@
+main: io.cactu.mc.freebuild.Chat
+name: ccChat
+version: 0.7
+
+depend: [ KotlinRuntime ]
+
+commands:
+  m:
+    description: Wyślij prywatną wiadomosć
+    usage: /<command> <gracz> <...treść>
+  "?":
+    description: Pomoc
+  help:
+    description: Pomoc
+  pomoc:
+    description: Pomoc

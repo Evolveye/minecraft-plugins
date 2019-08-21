@@ -1,0 +1,5 @@
+main: io.cactu.mc.cuboids.Plugin
+name: ccCuboids
+version: 0.1
+
+depend: [ KotlinRuntime, ccChat ]
