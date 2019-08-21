@@ -11,6 +11,7 @@ import org.bukkit.event.player.PlayerMoveEvent
 import java.sql.DriverManager
 import java.sql.Connection
 import java.sql.ResultSet
+import io.cactu.mc.chat.App as ccChat
 
 data class CuboidChunk( val chunk:Chunk, val cuboidId:String ) {
   val playersInside = mutableListOf<Player>()

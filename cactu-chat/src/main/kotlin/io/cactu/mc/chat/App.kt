@@ -145,7 +145,7 @@ public class App: JavaPlugin(), Listener {
   public fun onConsoleSay( e:ServerCommandEvent ) {
     val command = e.command
 
-    if ( command.substring( 0, 3 ) != "say" ) return
+    if ( command.length >= 3 && command.substring( 0, 3 ) != "say" ) return
 
     e.setCancelled( true )
 

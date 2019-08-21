@@ -1,0 +1,3 @@
+main: io.cactu.mc.App
+name: KotlinRuntime
+version: 0.1
