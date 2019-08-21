@@ -68,7 +68,6 @@ public class Plugin: JavaPlugin(), Listener {
   }
 
   override fun onEnable() {
-    logger.info( "Plugin enabled" )
     server.pluginManager.registerEvents( this, this )
   }
 
