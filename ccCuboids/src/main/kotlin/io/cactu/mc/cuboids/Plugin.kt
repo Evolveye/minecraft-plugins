@@ -14,6 +14,7 @@ import java.sql.DriverManager
 import java.sql.Connection
 import java.sql.ResultSet
 import io.cactu.mc.chat.createChatInfo
+import io.cactu.mc.chat.createChatError
 
 data class CuboidChunk( val chunk:Chunk, val cuboidId:String ) {
   val playersInside = mutableListOf<Player>()
@@ -45,23 +46,28 @@ class Plugin: JavaPlugin(), Listener {
     if ( args.size == 1 ) return listOf( "create", "remove" )
     if ( args[ 0 ] == "create" ) {
       if ( args.size == 2 ) return listOf( "<name>" )
+      if ( args.size == 3 ) return null
     }
     if ( args[ 0 ] == "remove" ) {
       if ( args.size == 2 ) return listOf( "<name>" )
+      if ( args.size == 3 ) return null
     }
 
-    return null
+    return listOf()
   }
 
   override fun onCommand( sender:CommandSender, command:Command, label:String, args:Array<String> ):Boolean {
-    if ( args.size == 0 ) sender.sendMessage( "Nie podałeś akcji" )
+    if ( args.size == 0 ) sender.sendMessage( createChatError( "Nie podałeś akcji" ) )
     else if ( args[ 0 ] == "create" ) {
-      if ( args.size == 1 ) sender.sendMessage( "Nie podałeś nazwy regionu do utworzenia" )
-      else sender.sendMessage( "Tworzymy region o nazwie ${args[ 1 ]}" )
+      if ( args.size == 1 ) sender.sendMessage( createChatError( "Nie podałeś nazwy regionu do utworzenia!" ) )
+      else if ( args.size == 2 ) sender.sendMessage( createChatError( "Nie podałeś gracza, do którego należy przypisać region!" ) )
+      else if ( getPlayerCuboid( args[ 2 ] ) ) sender.sendMessage( createChatError( "Gracz ten posiada juz swój region!" ) )
+      else sender.sendMessage( createChatInfo( 'i', "Tworzymy region o nazwie ${args[ 1 ]}" ) )
     }
     else if ( args[ 0 ] == "remove" ) {
-      if ( args.size == 1 ) sender.sendMessage( "Nie podałeś nazwy regionu do usunięcia" )
-      else sender.sendMessage( "Usuwamy region o nazwie ${args[ 1 ]}" )
+      if ( args.size == 1 ) sender.sendMessage( createChatError( "Nie podałeś nazwy regionu do usunięcia!" ) )
+      else if ( getCuboid( args[ 1 ] ) ) sender.sendMessage( createChatError( "Wskazany cuboid nie istnieje!" ) )
+      else sender.sendMessage( createChatInfo( 'i', "Usuwamy region o nazwie ${args[ 1 ]}" ) )
     }
 
     return true
@@ -70,6 +76,12 @@ class Plugin: JavaPlugin(), Listener {
   fun doQuery( query:String ):ResultSet = connection
     .prepareStatement( query )
     .executeQuery()
+  fun getPlayerCuboid( playerName:String ):Boolean {
+    return false
+  }
+  fun getCuboid( cuboidName:String ):Boolean {
+    return false
+  }
 
   @EventHandler
   public fun onChunkLoad( e:ChunkLoadEvent ) {
