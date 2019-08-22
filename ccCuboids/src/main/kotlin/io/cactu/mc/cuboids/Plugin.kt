@@ -16,7 +16,8 @@ import java.sql.ResultSet
 import io.cactu.mc.chat.createChatInfo
 import io.cactu.mc.chat.createChatError
 
-data class CuboidChunk( val chunk:Chunk, val cuboidId:String ) {
+data class Cuboid( val id:Int, val ownerUUID:String, val name:String )
+data class CuboidChunk( val chunk:Chunk, val cuboidId:Int ) {
   val playersInside = mutableListOf<Player>()
 }
 
@@ -27,7 +28,7 @@ class Plugin: JavaPlugin(), Listener {
   val username = "csrv_651128"
   val password = "0496eb9412992801d273"
   val connection = DriverManager.getConnection( "jdbc:mysql://$host:$port/$database" , username, password )
-  val cuboidsChunks = mutableListOf<Triple<Int,Int,String>>()
+  val cuboidsChunks = mutableListOf<Triple<Int,Int,Int>>()
   val cuboidsNearPlayers = mutableMapOf<Pair<Int,Int>,CuboidChunk>()
 
   override fun onEnable() {
@@ -35,7 +36,7 @@ class Plugin: JavaPlugin(), Listener {
     val cuboids = doQuery( "SELECT * FROM `cuboids_chunks`")
 
     while ( cuboids.next() )
-      cuboidsChunks.add( Triple( cuboids.getInt( "x" ), cuboids.getInt( "z" ), cuboids.getString( "cuboidId" ) ) )
+      cuboidsChunks.add( Triple( cuboids.getInt( "x" ), cuboids.getInt( "z" ), cuboids.getInt( "cuboidId" ) ) )
   }
 
   override fun onDisable() {
@@ -61,13 +62,26 @@ class Plugin: JavaPlugin(), Listener {
     else if ( args[ 0 ] == "create" ) {
       if ( args.size == 1 ) sender.sendMessage( createChatError( "Nie podałeś nazwy regionu do utworzenia!" ) )
       else if ( args.size == 2 ) sender.sendMessage( createChatError( "Nie podałeś gracza, do którego należy przypisać region!" ) )
-      else if ( getPlayerCuboid( args[ 2 ] ) ) sender.sendMessage( createChatError( "Gracz ten posiada juz swój region!" ) )
-      else sender.sendMessage( createChatInfo( 'i', "Tworzymy region o nazwie ${args[ 1 ]}" ) )
+      else {
+        val player = server.getPlayer( args[ 2 ] )
+
+        if ( player == null ) sender.sendMessage( createChatError( "Wskazany gracz jest offline!" ) )
+        else if ( getPlayerCuboid( args[ 2 ] ) != null ) sender.sendMessage( createChatError( "Gracz ten posiada juz swój region!" ) )
+        else {
+          val chunk = (if ( sender is Player ) sender else player).location.chunk
+
+          if ( createCuboid( args[ 1 ], player, chunk ) ) sender.sendMessage( createChatInfo( 'i', "Region utworzony") )
+          else sender.sendMessage( createChatError( "Wystąpił nieznany błąd (prawdopodobnie w kodzie SQL)" ) )
+        }
+      }
     }
     else if ( args[ 0 ] == "remove" ) {
       if ( args.size == 1 ) sender.sendMessage( createChatError( "Nie podałeś nazwy regionu do usunięcia!" ) )
-      else if ( getCuboid( args[ 1 ] ) ) sender.sendMessage( createChatError( "Wskazany cuboid nie istnieje!" ) )
-      else sender.sendMessage( createChatInfo( 'i', "Usuwamy region o nazwie ${args[ 1 ]}" ) )
+      else if ( getCuboid( args[ 1 ] ) == null ) sender.sendMessage( createChatError( "Wskazany cuboid nie istnieje!" ) )
+      else {
+        if ( removeCuboid( args[ 1 ] ) ) sender.sendMessage( createChatInfo( 'i', "Region usunięty"))
+        else sender.sendMessage( createChatError( "Wystąpił nieznany błąd (prawdopodobnie w kodzie SQL)" ) )
+      }
     }
 
     return true
@@ -76,11 +90,73 @@ class Plugin: JavaPlugin(), Listener {
   fun doQuery( query:String ):ResultSet = connection
     .prepareStatement( query )
     .executeQuery()
-  fun getPlayerCuboid( playerName:String ):Boolean {
-    return false
+  fun doUpdatingQuery( query:String ):Int = connection
+    .prepareStatement( query )
+    .executeUpdate()
+  fun getPlayerCuboid( playerName:String ):Cuboid? {
+    val player = server.getPlayer( playerName )
+
+    if ( player == null ) return null
+
+    val cuboid = doQuery( """
+      SELECT *
+      FROM ( SELECT * FROM cuboids_members WHERE UUID='${player.uniqueId}' LIMIT 1 ) as m
+      JOIN cuboids as c WHERE m.cuboidId=c.id
+    """ )
+
+    if ( !cuboid.next() ) return null
+    return Cuboid( cuboid.getInt( "id" ), cuboid.getString( "ownerUUID" ), cuboid.getString( "name" ) )
   }
-  fun getCuboid( cuboidName:String ):Boolean {
-    return false
+  fun getCuboid( cuboidName:String ):Cuboid? {
+    val cuboid = doQuery( "SELECT * FROM cuboids WHERE name='$cuboidName'" )
+
+    if ( !cuboid.next() ) return null
+    return Cuboid( cuboid.getInt( "id" ), cuboid.getString( "ownerUUID" ), cuboid.getString( "name" ) )
+  }
+  fun createCuboid( name:String, player:Player, chunk:Chunk ):Boolean {
+    val existingCuboid = doQuery( "SELECT id FROM cuboids WHERE name='$name'" )
+
+    if ( existingCuboid.next() ) return false
+
+    doUpdatingQuery( "INSERT INTO cuboids (ownerUUID, name) VALUES ('${player.uniqueId}', '$name')" )
+
+    val insertedCuboid = doQuery( "SELECT id FROM cuboids ORDER BY id DESC LIMIT 1" )
+
+    insertedCuboid.next()
+
+    val lastCuboidId = insertedCuboid.getInt( "id" )
+    val x = chunk.getX()
+    val z = chunk.getZ()
+
+    doUpdatingQuery( """
+      INSERT INTO cuboids_members (UUID, cuboidId, role)
+      VALUES ('${player.uniqueId}', $lastCuboidId, 'Owner')
+    """ )
+    doUpdatingQuery( """
+      INSERT INTO cuboids_chunks (cuboidId, x, z)
+      VALUES ($lastCuboidId, $x, $z)
+    """ )
+
+    cuboidsChunks.add( Triple( x, z, lastCuboidId ) )
+    cuboidsNearPlayers.set( Pair( x, z ), CuboidChunk( chunk, lastCuboidId ) )
+
+    return true
+  }
+  fun removeCuboid( name:String ):Boolean {
+    val existingCuboid = doQuery( "SELECT id FROM cuboids WHERE name='$name'" )
+
+    if ( !existingCuboid.next() ) return false
+
+    val id = existingCuboid.getInt( "id" )
+
+    doUpdatingQuery( "DELETE FROM cuboids WHERE id=$id" )
+    doUpdatingQuery( "DELETE FROM cuboids_chunks WHERE cuboidId=$id" )
+    doUpdatingQuery( "DELETE FROM cuboids_members WHERE cuboidId=$id" )
+
+    cuboidsChunks.removeAll { it.third == id }
+    cuboidsNearPlayers.forEach { if (it.value.cuboidId == id) cuboidsNearPlayers.remove( it.key ) }
+
+    return true
   }
 
   @EventHandler
