@@ -8,6 +8,8 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.world.ChunkLoadEvent
 import org.bukkit.event.world.ChunkUnloadEvent
 import org.bukkit.event.player.PlayerMoveEvent
+import org.bukkit.command.CommandSender
+import org.bukkit.command.Command
 import java.sql.DriverManager
 import java.sql.Connection
 import java.sql.ResultSet
@@ -37,6 +39,32 @@ class Plugin: JavaPlugin(), Listener {
 
   override fun onDisable() {
     connection.close()
+  }
+
+  override fun onTabComplete( sender:CommandSender, command:Command, label:String, args:Array<String> ):List<String>? {
+    if ( args.size == 1 ) return listOf( "create", "remove" )
+    if ( args[ 0 ] == "create" ) {
+      if ( args.size == 2 ) return listOf( "<name>" )
+    }
+    if ( args[ 0 ] == "remove" ) {
+      if ( args.size == 2 ) return listOf( "<name>" )
+    }
+
+    return null
+  }
+
+  override fun onCommand( sender:CommandSender, command:Command, label:String, args:Array<String> ):Boolean {
+    if ( args.size == 0 ) sender.sendMessage( "Nie podałeś akcji" )
+    else if ( args[ 0 ] == "create" ) {
+      if ( args.size == 1 ) sender.sendMessage( "Nie podałeś nazwy regionu do utworzenia" )
+      else sender.sendMessage( "Tworzymy region o nazwie ${args[ 1 ]}" )
+    }
+    else if ( args[ 0 ] == "remove" ) {
+      if ( args.size == 1 ) sender.sendMessage( "Nie podałeś nazwy regionu do usunięcia" )
+      else sender.sendMessage( "Usuwamy region o nazwie ${args[ 1 ]}" )
+    }
+
+    return true
   }
 
   fun doQuery( query:String ):ResultSet = connection

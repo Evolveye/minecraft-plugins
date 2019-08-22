@@ -3,3 +3,8 @@ name: ccCuboids
 version: 0.1
 
 depend: [ KotlinRuntime, ccChat ]
+
+commands:
+  ccCuboids:
+    description: Obsłóż cuboidy
+    usage: /<command> <...>
