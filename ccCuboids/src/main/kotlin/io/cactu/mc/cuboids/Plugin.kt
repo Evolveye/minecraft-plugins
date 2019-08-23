@@ -30,13 +30,18 @@ class Plugin: JavaPlugin(), Listener {
   val connection = DriverManager.getConnection( "jdbc:mysql://$host:$port/$database" , username, password )
   val cuboidsChunks = mutableListOf<Triple<Int,Int,Int>>()
   val cuboidsNearPlayers = mutableMapOf<Pair<Int,Int>,CuboidChunk>()
+  val cuboidsInMemory = mutableSetOf<Cuboid>()
 
   override fun onEnable() {
     server.pluginManager.registerEvents( this, this )
+
     val cuboids = doQuery( "SELECT * FROM `cuboids_chunks`")
 
-    while ( cuboids.next() )
-      cuboidsChunks.add( Triple( cuboids.getInt( "x" ), cuboids.getInt( "z" ), cuboids.getInt( "cuboidId" ) ) )
+    while ( cuboids.next() ) cuboidsChunks.add( Triple(
+      cuboids.getInt( "x" ),
+      cuboids.getInt( "z" ),
+      cuboids.getInt( "cuboidId" )
+    ) )
   }
 
   override fun onDisable() {
@@ -98,6 +103,10 @@ class Plugin: JavaPlugin(), Listener {
 
     if ( player == null ) return null
 
+    val cuboidInMemory = cuboidsInMemory.find { it.ownerUUID == player.uniqueId.toString() }
+
+    if ( cuboidInMemory != null ) return cuboidInMemory
+
     val cuboid = doQuery( """
       SELECT *
       FROM ( SELECT * FROM cuboids_members WHERE UUID='${player.uniqueId}' LIMIT 1 ) as m
@@ -108,10 +117,19 @@ class Plugin: JavaPlugin(), Listener {
     return Cuboid( cuboid.getInt( "id" ), cuboid.getString( "ownerUUID" ), cuboid.getString( "name" ) )
   }
   fun getCuboid( cuboidName:String ):Cuboid? {
+    val cuboidInMemoy = cuboidsInMemory.find { it.name == cuboidName }
+
+    if ( cuboidInMemoy != null ) return cuboidInMemoy
+
     val cuboid = doQuery( "SELECT * FROM cuboids WHERE name='$cuboidName'" )
 
     if ( !cuboid.next() ) return null
-    return Cuboid( cuboid.getInt( "id" ), cuboid.getString( "ownerUUID" ), cuboid.getString( "name" ) )
+
+    val newCuboid = Cuboid( cuboid.getInt( "id" ), cuboid.getString( "ownerUUID" ), cuboid.getString( "name" ) )
+
+    cuboidsInMemory.add( newCuboid )
+
+    return newCuboid
   }
   fun createCuboid( name:String, player:Player, chunk:Chunk ):Boolean {
     val existingCuboid = doQuery( "SELECT id FROM cuboids WHERE name='$name'" )
@@ -154,7 +172,8 @@ class Plugin: JavaPlugin(), Listener {
     doUpdatingQuery( "DELETE FROM cuboids_members WHERE cuboidId=$id" )
 
     cuboidsChunks.removeAll { it.third == id }
-    cuboidsNearPlayers.forEach { if (it.value.cuboidId == id) cuboidsNearPlayers.remove( it.key ) }
+    cuboidsNearPlayers.entries.removeIf { it.value.cuboidId == id }
+    cuboidsInMemory.removeAll { it.id == id }
 
     return true
   }
