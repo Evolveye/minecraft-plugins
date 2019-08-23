@@ -2,9 +2,11 @@ main: io.cactu.mc.cuboids.Plugin
 name: ccCuboids
 version: 0.1
 
+api-version: 1.14
 depend: [ KotlinRuntime, ccChat ]
 
 commands:
   cuboids:
     description: Obsłóż cuboidy
     usage: /<command> <...>
+    permission: minecraft.command.op
