@@ -75,7 +75,7 @@ class Plugin: JavaPlugin(), Listener {
         else {
           val chunk = (if ( sender is Player ) sender else player).location.chunk
 
-          if ( createCuboid( args[ 1 ], player, chunk ) ) sender.sendMessage( createChatInfo( 'i', "Region utworzony") )
+          if ( createCuboid( args[ 1 ], player, chunk ) ) sender.sendMessage( createChatInfo( "Region utworzony") )
           else sender.sendMessage( createChatError( "Wystąpił nieznany błąd (prawdopodobnie w kodzie SQL)" ) )
         }
       }
@@ -84,7 +84,7 @@ class Plugin: JavaPlugin(), Listener {
       if ( args.size == 1 ) sender.sendMessage( createChatError( "Nie podałeś nazwy regionu do usunięcia!" ) )
       else if ( getCuboid( args[ 1 ] ) == null ) sender.sendMessage( createChatError( "Wskazany cuboid nie istnieje!" ) )
       else {
-        if ( removeCuboid( args[ 1 ] ) ) sender.sendMessage( createChatInfo( 'i', "Region usunięty"))
+        if ( removeCuboid( args[ 1 ] ) ) sender.sendMessage( createChatInfo( "Region usunięty"))
         else sender.sendMessage( createChatError( "Wystąpił nieznany błąd (prawdopodobnie w kodzie SQL)" ) )
       }
     }
@@ -209,11 +209,15 @@ class Plugin: JavaPlugin(), Listener {
     val cuboidChunkTo = cuboidsNearPlayers.get( Pair( playerChunk.getX(), playerChunk.getZ() ) )
 
     if ( !((cuboidChunkFrom == null).xor( cuboidChunkTo == null )) ) return
+    if ( cuboidChunkFrom == null ) {
+      val cuboid = cuboidsInMemory.find { it.id == cuboidChunkTo!!.cuboidId }!!
 
-    val message =
-      if ( cuboidChunkFrom == null ) "Wszedłeś na region o nazwie: &7${cuboidChunkTo!!.cuboidId}"
-      else "Wyszedleś z regionu o nazwie: &7${cuboidChunkFrom.cuboidId}"
+      e.player.sendMessage( createChatInfo( "Wszedłeś na region o nazwie: &7${cuboid.name}" ) )
+    }
+    else {
+      val cuboid = cuboidsInMemory.find { it.id == cuboidChunkFrom.cuboidId }!!
 
-    e.player.sendMessage( createChatInfo( 'i', message ) )
+      e.player.sendMessage( createChatInfo( "Wyszedleś z regionu o nazwie: &7${cuboid.name}" ) )
+    }
   }
 }

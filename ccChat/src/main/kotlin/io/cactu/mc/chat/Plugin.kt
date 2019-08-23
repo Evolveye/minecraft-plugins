@@ -5,7 +5,10 @@ import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.entity.Player
 import org.bukkit.event.Listener
 import org.bukkit.event.EventHandler
-import org.bukkit.event.player.*
+import org.bukkit.event.player.PlayerJoinEvent
+import org.bukkit.event.player.PlayerQuitEvent
+import org.bukkit.event.player.AsyncPlayerChatEvent
+import org.bukkit.event.world.WorldSaveEvent
 import org.bukkit.event.server.ServerCommandEvent
 import org.bukkit.ChatColor
 import org.bukkit.command.CommandSender
@@ -39,10 +42,11 @@ fun replaceVarsToColor( message:String ):String = message
   .replace( "&u", "${ChatColor.UNDERLINE}" )
   .replace( "&i", "${ChatColor.ITALIC}" )
   .replace( "&r", "${ChatColor.RESET}" )
+fun createChatInfo( message:String ) = createChatInfo( 'i', message )
 fun createChatInfo( sign:Char, message:String ) =
   replaceVarsToColor( "${ChatColor.DARK_GRAY}[${ChatColor.WHITE}$sign${ChatColor.DARK_GRAY}] $message" )
 fun createChatError( message:String ) =
-  replaceVarsToColor( "${ChatColor.DARK_GRAY}[${ChatColor.RED}!!!${ChatColor.DARK_GRAY}] ${ChatColor.RED}$message" )
+  replaceVarsToColor( "${ChatColor.DARK_GRAY}[${ChatColor.RED}X${ChatColor.DARK_GRAY}] ${ChatColor.RED}$message" )
 fun createChatMessage( nickname:String, message:String ):String {
   val default = ChatInfo( '!', message, ChatColor.GRAY )
   val chatInfo = if ( message.length == 1 ) default else when ( message[ 0 ] ) {
