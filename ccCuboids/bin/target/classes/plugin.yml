@@ -1,5 +1,0 @@
-main: io.cactu.mc.freebuild.Cuboids
-name: ccCuboids
-version: 0.1
-
-depend: [ KotlinRuntime, ccChat ]

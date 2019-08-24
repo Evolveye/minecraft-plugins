@@ -5,20 +5,11 @@ import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.entity.Player
 import org.bukkit.event.Listener
 import org.bukkit.event.EventHandler
-import org.bukkit.event.player.PlayerJoinEvent
-import org.bukkit.event.player.PlayerQuitEvent
-import org.bukkit.event.player.AsyncPlayerChatEvent
-import org.bukkit.event.world.WorldSaveEvent
+import org.bukkit.event.player.*
 import org.bukkit.event.server.ServerCommandEvent
 import org.bukkit.ChatColor
 import org.bukkit.command.CommandSender
 import org.bukkit.command.Command
-
-data class ChatInfo(
-  val prefix:Char,
-  val message:String,
-  val messageColor:ChatColor
-)
 
 fun replaceVarsToColor( message:String ):String = message
   .replace( "&0", "${ChatColor.BLACK}" )
@@ -42,12 +33,22 @@ fun replaceVarsToColor( message:String ):String = message
   .replace( "&u", "${ChatColor.UNDERLINE}" )
   .replace( "&i", "${ChatColor.ITALIC}" )
   .replace( "&r", "${ChatColor.RESET}" )
-fun createChatInfo( message:String ) = createChatInfo( 'i', message )
-fun createChatInfo( sign:Char, message:String ) =
-  replaceVarsToColor( "${ChatColor.DARK_GRAY}[${ChatColor.WHITE}$sign${ChatColor.DARK_GRAY}] $message" )
-fun createChatError( message:String ) =
-  replaceVarsToColor( "${ChatColor.DARK_GRAY}[${ChatColor.RED}X${ChatColor.DARK_GRAY}] ${ChatColor.RED}$message" )
-fun createChatMessage( nickname:String, message:String ):String {
+fun createChatInfo( message:String, sender:CommandSender?=null ):String = createChatInfo( 'i', message, sender )
+fun createChatInfo( sign:Char, message:String, sender:CommandSender?=null ):String {
+  val convertedMessage = replaceVarsToColor( "&D7[&1$sign&D7] $message" )
+
+  if ( sender != null ) sender.sendMessage( convertedMessage )
+
+  return convertedMessage
+}
+fun createChatError( message:String, sender:CommandSender?=null ):String {
+  val convertedMessage = replaceVarsToColor( "&D7[&5X&D7] &1$message" )
+
+  if ( sender != null ) sender.sendMessage( convertedMessage )
+
+  return convertedMessage
+}
+fun createChatMessage( nickname:String, message:String, sender:CommandSender?=null ):String {
   val default = ChatInfo( '!', message, ChatColor.GRAY )
   val chatInfo = if ( message.length == 1 ) default else when ( message[ 0 ] ) {
     '.' -> ChatInfo( '.', message.substring( 1 ), ChatColor.DARK_AQUA )
@@ -58,20 +59,27 @@ fun createChatMessage( nickname:String, message:String ):String {
     else -> default
   }
 
-  return (""
+  val convertedMessage = (""
     + "${chatInfo.messageColor}[${chatInfo.prefix}]"
     + "${ChatColor.WHITE} $nickname"
     + "${ChatColor.DARK_GRAY} >>"
     + "${chatInfo.messageColor} ${chatInfo.message}"
   )
+
+  if ( sender != null ) sender.sendMessage( convertedMessage )
+
+  return convertedMessage
 }
 
-public class Plugin: JavaPlugin(), Listener {
+data class ChatInfo( val prefix:Char, val message:String, val messageColor:ChatColor)
+
+public class App: JavaPlugin(), Listener {
   private val chatModes = object {
     var player = ".!@"
   }
 
   override fun onEnable() {
+    logger.info( "Plugin enabled" )
     server.pluginManager.registerEvents( this, this )
   }
 
@@ -94,29 +102,29 @@ public class Plugin: JavaPlugin(), Listener {
             val nicknameA = "${ChatColor.GREEN}[Ty > ${ChatColor.WHITE}$reveiverName${ChatColor.GREEN}]"
             val nicknameB = "${ChatColor.GREEN}[${ChatColor.WHITE}$senderName${ChatColor.GREEN} > Ty]"
 
-            sender.sendMessage( createChatMessage( nicknameA, message ) )
+            createChatMessage( nicknameA, message, sender )
 
-            if ( receiver is Player ) receiver.sendMessage( createChatMessage( nicknameB, message ) )
-            else logger.info( createChatMessage( nicknameB, message )  )
+            if ( receiver is Player ) createChatMessage( nicknameB, message, receiver )
+            else logger.info( createChatMessage( nicknameB, message ) )
 
             return true
           }
-          else sender.sendMessage( createChatError( "Złe użycie polecenia /m: &1Nie podałeś wiadomości" ) )
+          else createChatError( "Złe użycie polecenia /m: &1Nie podałeś wiadomości", sender )
         }
-        else sender.sendMessage( createChatError( "Złe użycie polecenia /m: &1Podany odbiorca nie istnieje" ) )
+        else createChatError( "Złe użycie polecenia /m: &1Podany odbiorca nie istnieje", sender )
       }
-      else sender.sendMessage( createChatError( "Złe użycie polecenia /m: &1Nie określiłeś gracza" ) )
+      else createChatError( "Złe użycie polecenia /m: &1Nie określiłeś gracza", sender )
 
-      sender.sendMessage( createChatError( "Składnia: &1/m <gracz> <...treść>" ) )
+      createChatError( "Składnia: &1/m <gracz> <...treść>", sender )
     }
     else if ( label == "?" || label == "help" || label == "pomoc" ) {
-      sender.sendMessage( createChatInfo( '?', "&3&bOficjalnie dostępne na serwerze polecenia:"
+      createChatInfo( '?', "&3&bOficjalnie dostępne na serwerze polecenia:"
         + "\n &3&b/m&r&7: Prywatna wiadomość"
         + "\n &3&b/r&r&7: Odpowiedź na prywatną wiadomość"
         + "\n &3&b/a&r&7: Spójrz na mapę osiągnięć"
         + "\n &3&b/mod&r&7: Wyślij zgłoszenie (np. dotyczące błędu) do administracji"
         + "\n  Zgłoszenie będzie zawierać informacje o Tobie, i lokalizacji zgłoszenia"
-      ) )
+      , sender )
     }
 
     return true

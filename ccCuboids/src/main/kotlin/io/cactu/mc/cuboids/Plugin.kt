@@ -84,29 +84,29 @@ class Plugin: JavaPlugin(), Listener {
     return listOf()
   }
   override fun onCommand( sender:CommandSender, command:Command, label:String, args:Array<String> ):Boolean {
-    if ( args.size == 0 ) sender.sendMessage( createChatError( "Nie podałeś akcji" ) )
+    if ( args.size == 0 ) createChatError( "Nie podałeś akcji", sender )
     else if ( args[ 0 ] == "create" ) {
-      if ( args.size == 1 ) sender.sendMessage( createChatError( "Nie podałeś nazwy regionu do utworzenia!" ) )
-      else if ( args.size == 2 ) sender.sendMessage( createChatError( "Nie podałeś gracza, do którego należy przypisać region!" ) )
+      if ( args.size == 1 ) createChatError( "Nie podałeś nazwy regionu do utworzenia!", sender )
+      else if ( args.size == 2 ) createChatError( "Nie podałeś gracza, do którego należy przypisać region!", sender )
       else {
         val player = server.getPlayer( args[ 2 ] )
 
-        if ( player == null ) sender.sendMessage( createChatError( "Wskazany gracz jest offline!" ) )
-        else if ( getCuboid( player ) != null ) sender.sendMessage( createChatError( "Gracz ten posiada juz swój region!" ) )
+        if ( player == null ) createChatError( "Wskazany gracz jest offline!", sender )
+        else if ( getCuboid( player ) != null ) createChatError( "Gracz ten posiada juz swój region!", sender )
         else {
           val chunk = (if ( sender is Player ) sender else player).location.chunk
 
-          if ( createCuboid( args[ 1 ], CuboidType.REGION, player, chunk ) ) sender.sendMessage( createChatInfo( "Region utworzony") )
-          else sender.sendMessage( createChatError( "Wystąpił nieznany błąd (prawdopodobnie w kodzie SQL)" ) )
+          if ( createCuboid( args[ 1 ], CuboidType.REGION, player, chunk ) ) createChatInfo( "Region utworzony", sender )
+          else createChatError( "Wystąpił nieznany błąd (prawdopodobnie w kodzie SQL)", sender )
         }
       }
     }
     else if ( args[ 0 ] == "remove" ) {
-      if ( args.size == 1 ) sender.sendMessage( createChatError( "Nie podałeś nazwy regionu do usunięcia!" ) )
-      else if ( getCuboid( args[ 1 ] ) == null ) sender.sendMessage( createChatError( "Wskazany cuboid nie istnieje!" ) )
+      if ( args.size == 1 ) createChatError( "Nie podałeś nazwy regionu do usunięcia!", sender )
+      else if ( getCuboid( args[ 1 ] ) == null ) createChatError( "Wskazany cuboid nie istnieje!", sender )
       else {
-        if ( removeCuboid( args[ 1 ] ) ) sender.sendMessage( createChatInfo( "Region usunięty"))
-        else sender.sendMessage( createChatError( "Wystąpił nieznany błąd (prawdopodobnie w kodzie SQL)" ) )
+        if ( removeCuboid( args[ 1 ] ) ) createChatInfo( "Region usunięty", sender )
+        else createChatError( "Wystąpił nieznany błąd (prawdopodobnie w kodzie SQL)", sender )
       }
     }
 
@@ -155,12 +155,12 @@ class Plugin: JavaPlugin(), Listener {
     if ( cuboidChunkFrom == null ) {
       val cuboidName = cuboids.get( cuboidChunkTo!!.cuboidId )!!.name.replace( '_', ' ' )
 
-      e.player.sendMessage( createChatInfo( "Wszedłeś na region: &7$cuboidName" ) )
+      createChatInfo( "Wszedłeś na region: &7$cuboidName", e.player )
     }
     else {
       val cuboidName = cuboids.get( cuboidChunkFrom.cuboidId )!!.name.replace( '_', ' ' )
 
-      e.player.sendMessage( createChatInfo( "Wyszedleś z regionu: &7$cuboidName" ) )
+      createChatInfo( "Wyszedleś z regionu: &7$cuboidName", e.player )
     }
   }
   @EventHandler
@@ -170,7 +170,7 @@ class Plugin: JavaPlugin(), Listener {
     val chunk = if ( block == null ) player.location.chunk else block.chunk
 
     if ( !canPlayerInfere( chunk, e.player ) ) {
-      player.sendMessage( createChatError( "Nie możesz ingerować na tym terenie!" ) )
+      createChatError( "Nie możesz ingerować na tym terenie!", player )
       e.setCancelled( true )
     }
   }
@@ -183,13 +183,13 @@ class Plugin: JavaPlugin(), Listener {
       val playerUUID = player.uniqueId.toString()
 
       if ( cuboids.entries.find { (_, it) -> it.type == CuboidType.TENT && it.ownerUUID == playerUUID } != null ) {
-        player.sendMessage( createChatInfo(
-          "Ogniska można stawiać jedynie na zabezpiecoznym terenie, oraz gdy nie posiada się obozowiska"
-        ) )
+        createChatInfo(
+          "Ogniska można stawiać jedynie na zabezpiecoznym terenie, oraz gdy nie posiada się obozowiska", player
+        )
         e.setCancelled( true )
       }
       else if ( !isGoodPlaceForCuboid( block.chunk, CuboidType.TENT ) ) {
-        player.sendMessage( createChatInfo( "Znajdujesz się zbyt blisko jakiegoś regionu aby zabezpieczyć ten chunk" ) )
+        createChatInfo( "Znajdujesz się zbyt blisko jakiegoś regionu aby zabezpieczyć ten chunk", player )
         e.setCancelled( true )
       }
       else {
@@ -202,7 +202,7 @@ class Plugin: JavaPlugin(), Listener {
         )
         createCuboid( "Obozowisko gracza ${player.displayName}", CuboidType.TENT, player, block.chunk )
         actionBlocks.set( Triple( x, y, z ), ActionBlock( "tent_core" ) )
-        player.sendMessage( createChatInfo( "Obozowisko rozbite pomyślnie" ) )
+        createChatInfo( "Obozowisko rozbite pomyślnie", player )
       }
     }
   }
@@ -219,7 +219,7 @@ class Plugin: JavaPlugin(), Listener {
 
       removeCuboid( "Obozowisko gracza ${player.displayName}" )
       doUpdatingQuery( "DELETE FROM action_blocks WHERE x=$x and y=$y and z=$z" )
-      player.sendMessage( createChatInfo( "Obozowisko rozebrane pomyślnie" ) )
+      createChatInfo( "Obozowisko rozebrane pomyślnie", player )
     }
   }
 
