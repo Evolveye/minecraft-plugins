@@ -6,11 +6,13 @@ import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.event.Listener
 import org.bukkit.event.EventHandler
+import org.bukkit.event.block.BlockCanBuildEvent
 import org.bukkit.event.block.BlockPlaceEvent
 import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.world.ChunkLoadEvent
 import org.bukkit.event.world.ChunkUnloadEvent
 import org.bukkit.event.player.PlayerMoveEvent
+import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.command.CommandSender
 import org.bukkit.command.Command
 import java.sql.DriverManager
@@ -20,9 +22,9 @@ import io.cactu.mc.chat.createChatInfo
 import io.cactu.mc.chat.createChatError
 
 enum class CuboidType { TENT, REGION, COLONY }
+data class ActionBlock( val type:String )
 data class CuboidChunk( val x:Int, val z:Int, val world:String, val cuboidId:Int )
 data class CuboidMember( val UUID:String, val owner:Boolean, val manager:Boolean )
-data class ActionBlock( val type:String )
 data class Cuboid(
   val id:Int,
   val ownerUUID:String,
@@ -39,6 +41,8 @@ class Plugin: JavaPlugin(), Listener {
   val password = "0496eb9412992801d273"
   val connection = DriverManager.getConnection( "jdbc:mysql://$host:$port/$database" , username, password )
 
+  val distanceTentFromCuboid = 2
+  val distanceCuboidFromCuboid = 11
   val cuboidsChunks = mutableSetOf<CuboidChunk>()
   val activeCuboidsChunks = mutableSetOf<CuboidChunk>()
   val actionBlocks = mutableMapOf<Triple<Int,Int,Int>,ActionBlock>()
@@ -88,7 +92,7 @@ class Plugin: JavaPlugin(), Listener {
         val player = server.getPlayer( args[ 2 ] )
 
         if ( player == null ) sender.sendMessage( createChatError( "Wskazany gracz jest offline!" ) )
-        else if ( getPlayerCuboid( args[ 2 ] ) != null ) sender.sendMessage( createChatError( "Gracz ten posiada juz swój region!" ) )
+        else if ( getCuboid( player ) != null ) sender.sendMessage( createChatError( "Gracz ten posiada juz swój region!" ) )
         else {
           val chunk = (if ( sender is Player ) sender else player).location.chunk
 
@@ -121,9 +125,7 @@ class Plugin: JavaPlugin(), Listener {
 
     activeCuboidsChunks.add( cuboidChunk )
 
-    if ( cuboids.get( cuboidId ) != null ) return
-
-    cuboids.set( cuboidId, getCuboidFromDb( cuboidId ) )
+    if ( !cuboids.containsKey( cuboidId ) ) cuboids.set( cuboidId, getCuboid( cuboidId )!! )
   }
   @EventHandler
   public fun onChunkUnload( e:ChunkUnloadEvent ) {
@@ -162,17 +164,33 @@ class Plugin: JavaPlugin(), Listener {
     }
   }
   @EventHandler
+  public fun onPlayerInteract( e:PlayerInteractEvent ) {
+    val block = e.clickedBlock
+    val player = e.player
+    val chunk = if ( block == null ) player.location.chunk else block.chunk
+
+    if ( !canPlayerInfere( chunk, e.player ) ) {
+      player.sendMessage( createChatError( "Nie możesz ingerować na tym terenie!" ) )
+      e.setCancelled( true )
+    }
+  }
+  @EventHandler
   public fun onBlockPlace( e:BlockPlaceEvent ) {
     val block = e.blockPlaced
     val player = e.player
 
     if ( block.type == Material.CAMPFIRE ) {
       val playerUUID = player.uniqueId.toString()
-      val myTent = cuboids.entries.find { (_, it) -> it.type == CuboidType.TENT && it.ownerUUID == playerUUID }
 
-      if ( myTent != null ) {
-        if ( activeCuboidsChunks.find { it.x == block.chunk.getX() && it.z == block.chunk.getZ() } == null )
-          player.sendMessage( createChatInfo( "Jeśli chciałeś postawić obozowisko, informuję że już jedno posiadasz" ) )
+      if ( cuboids.entries.find { (_, it) -> it.type == CuboidType.TENT && it.ownerUUID == playerUUID } != null ) {
+        player.sendMessage( createChatInfo(
+          "Ogniska można stawiać jedynie na zabezpiecoznym terenie, oraz gdy nie posiada się obozowiska"
+        ) )
+        e.setCancelled( true )
+      }
+      else if ( !isGoodPlaceForCuboid( block.chunk, CuboidType.TENT ) ) {
+        player.sendMessage( createChatInfo( "Znajdujesz się zbyt blisko jakiegoś regionu aby zabezpieczyć ten chunk" ) )
+        e.setCancelled( true )
       }
       else {
         val x = block.getX()
@@ -212,8 +230,38 @@ class Plugin: JavaPlugin(), Listener {
     .prepareStatement( query )
     .executeUpdate()
 
-  fun getPlayerCuboid( playerName:String ):Cuboid? {
-    val player = server.getPlayer( playerName ) ?: return null
+  fun isGoodPlaceForCuboid( chunk:Chunk, type:CuboidType ):Boolean {
+    val newCuboidX = chunk.getX()
+    val newCuboidZ = chunk.getZ()
+    val REGION = CuboidType.REGION
+
+    for ( cuboidChunk in cuboidsChunks ) {
+      val x = newCuboidX - cuboidChunk.x
+      val z = newCuboidZ - cuboidChunk.z
+      val distance = Math.hypot( x.toDouble(), z.toDouble() )
+
+      if ( distance < distanceTentFromCuboid ) return false
+      if ( type == REGION && distance < distanceCuboidFromCuboid ) return false
+    }
+
+    return true
+  }
+  fun canPlayerInfere( chunk:Chunk, player:Player ):Boolean {
+    return canPlayerInfere( chunk, player.uniqueId.toString() )
+  }
+  fun canPlayerInfere( chunk:Chunk, playerUUID:String ):Boolean {
+    val x = chunk.getX()
+    val z = chunk.getZ()
+    val cuboidId = cuboidsChunks.find { it.x == x && it.z == z }?.cuboidId ?: return true
+    val cuboid = getCuboid( cuboidId )!!
+
+    for ( member in cuboid.members.values )
+      if ( member.UUID == playerUUID ) return true
+
+    return false
+  }
+
+  fun getCuboid( player:Player ):Cuboid? {
     val playerUUID = player.uniqueId.toString()
 
     for ( cuboid in cuboids.values )
@@ -228,7 +276,7 @@ class Plugin: JavaPlugin(), Listener {
 
     if ( !cuboid.next() ) return null
 
-    val newCuboid = getCuboidFromQuery( cuboid )
+    val newCuboid = buildCuboidFromQuery( cuboid )
 
     cuboids.set( newCuboid.id, newCuboid )
 
@@ -243,22 +291,29 @@ class Plugin: JavaPlugin(), Listener {
 
     if ( !cuboid.next() ) return null
 
-    val newCuboid = getCuboidFromQuery( cuboid )
+    val newCuboid = buildCuboidFromQuery( cuboid )
 
     cuboids.set( newCuboid.id, newCuboid )
 
     return newCuboid
   }
-  fun getCuboidFromDb( id:Int ):Cuboid {
-    return getCuboidFromQuery( doQuery( "SELECT * FROM cuboids WHERE id=$id" ) )
+  fun getCuboid( id:Int ):Cuboid? {
+    if ( cuboids.containsKey( id ) ) return cuboids.get( id )
+
+    val cuboid = doQuery( "SELECT * FROM cuboids WHERE id=$id" )
+
+    cuboid.next()
+
+    return buildCuboidFromQuery( cuboid )
   }
-  fun getCuboidFromQuery( cuboidFromQuery:ResultSet ):Cuboid {
+  fun buildCuboidFromQuery( cuboidFromQuery:ResultSet ):Cuboid {
     val id = cuboidFromQuery.getInt( "id" )
-    val membersSQL = doQuery( "SELECT * FROM cuboids_members WHERE cuboidId='$id'" )
+    val membersSQL = doQuery( "SELECT * FROM cuboids_members WHERE cuboidId=$id" )
     val members = mutableMapOf<String,CuboidMember>()
 
     while ( membersSQL.next() ) {
       val uuid = membersSQL.getString( "UUID" )
+
       members.set( uuid, CuboidMember(
         uuid,
         membersSQL.getBoolean( "owner" ),
@@ -274,6 +329,7 @@ class Plugin: JavaPlugin(), Listener {
       members
     )
   }
+
   fun createCuboid( cuboidName:String, type:CuboidType, player:Player, chunk:Chunk ):Boolean {
     val name = cuboidName.replace( ' ', '_' )
     val existingCuboid = doQuery( "SELECT id FROM cuboids WHERE name='$name'" )
@@ -290,7 +346,7 @@ class Plugin: JavaPlugin(), Listener {
 
       cuboid.next()
 
-      getCuboidFromQuery( cuboid )
+      buildCuboidFromQuery( cuboid )
     }
 
     val worldName = chunk.world.name
@@ -300,11 +356,13 @@ class Plugin: JavaPlugin(), Listener {
     val cuboidChunk = CuboidChunk( x, z, worldName, newCuboidId )
 
     doUpdatingQuery(
-      "INSERT INTO cuboids_members (UUID, cuboidId, role) VALUES ('$playerUUID', $newCuboidId, 'Owner')"
+      "INSERT INTO cuboids_members (UUID, cuboidId, owner, manager) VALUES ('$playerUUID', $newCuboidId, true, true)"
     )
     doUpdatingQuery(
-      "INSERT INTO cuboids_chunks (cuboidId, world, x, z) VALUES ($newCuboidId, $worldName, $x, $z)"
+      "INSERT INTO cuboids_chunks (cuboidId, world, x, z) VALUES ($newCuboidId, '$worldName', $x, $z)"
     )
+
+    newCuboid.members.set( playerUUID, CuboidMember( playerUUID, true, true))
 
     if( chunk.isLoaded ) activeCuboidsChunks.add( cuboidChunk )
     cuboidsChunks.add( cuboidChunk )
