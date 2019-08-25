@@ -180,11 +180,9 @@ class Plugin: JavaPlugin(), Listener {
     val player = e.player
 
     if ( block.type == Material.CAMPFIRE ) {
-      val playerUUID = player.uniqueId.toString()
-
-      if ( cuboids.entries.find { (_, it) -> it.type == CuboidType.TENT && it.ownerUUID == playerUUID } != null ) {
+      if ( getCuboid( player, CuboidType.TENT ) != null ) {
         createChatInfo(
-          "Ogniska można stawiać jedynie na zabezpiecoznym terenie, oraz gdy nie posiada się obozowiska", player
+          "Ogniska można stawiać jedynie na zabezpieczonym terenie, oraz gdy nie posiada się obozowiska", player
         )
         e.setCancelled( true )
       }
@@ -261,11 +259,11 @@ class Plugin: JavaPlugin(), Listener {
     return false
   }
 
-  fun getCuboid( player:Player ):Cuboid? {
+  fun getCuboid( player:Player, type:CuboidType=CuboidType.REGION ):Cuboid? {
     val playerUUID = player.uniqueId.toString()
 
     for ( cuboid in cuboids.values )
-      for ( member in cuboid.members.values )
+      if ( cuboid.type == type ) for ( member in cuboid.members.values )
         if ( member.UUID == playerUUID ) return cuboid
 
     val cuboid = doQuery( """

@@ -73,7 +73,7 @@ fun createChatMessage( nickname:String, message:String, sender:CommandSender?=nu
 
 data class ChatInfo( val prefix:Char, val message:String, val messageColor:ChatColor)
 
-public class App: JavaPlugin(), Listener {
+public class Plugin: JavaPlugin(), Listener {
   private val chatModes = object {
     var player = ".!@"
   }
