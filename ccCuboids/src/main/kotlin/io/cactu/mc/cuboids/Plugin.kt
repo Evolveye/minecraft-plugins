@@ -1,9 +1,18 @@
 package io.cactu.mc.cuboids
 
+import io.cactu.mc.chat.createChatInfo
+import io.cactu.mc.chat.createChatError
+import java.sql.DriverManager
+import java.sql.Connection
+import java.sql.ResultSet
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.Chunk
 import org.bukkit.Material
+import org.bukkit.block.Block
+import org.bukkit.command.Command
+import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
+import org.bukkit.entity.EntityType
 import org.bukkit.event.Listener
 import org.bukkit.event.EventHandler
 import org.bukkit.event.block.BlockCanBuildEvent
@@ -13,13 +22,8 @@ import org.bukkit.event.world.ChunkLoadEvent
 import org.bukkit.event.world.ChunkUnloadEvent
 import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.event.player.PlayerInteractEvent
-import org.bukkit.command.CommandSender
-import org.bukkit.command.Command
-import java.sql.DriverManager
-import java.sql.Connection
-import java.sql.ResultSet
-import io.cactu.mc.chat.createChatInfo
-import io.cactu.mc.chat.createChatError
+import org.bukkit.event.entity.EntityExplodeEvent
+import org.bukkit.event.entity.EntityDamageByEntityEvent
 
 enum class CuboidType { TENT, REGION, COLONY }
 data class ActionBlock( val type:String )
@@ -44,13 +48,14 @@ class Plugin: JavaPlugin(), Listener {
   val distanceTentFromCuboid = 2
   val distanceCuboidFromCuboid = 11
   val cuboidsChunks = mutableSetOf<CuboidChunk>()
-  val activeCuboidsChunks = mutableSetOf<CuboidChunk>()
+  // val activeCuboidsChunks = mutableSetOf<CuboidChunk>()
   val actionBlocks = mutableMapOf<Triple<Int,Int,Int>,ActionBlock>()
   val cuboids = mutableMapOf<Int,Cuboid>()
 
   override fun onEnable() {
     server.pluginManager.registerEvents( this, this )
 
+    val cuboidsSQL = doQuery( "SELECT * FROM cuboids")
     val cuboidsChunksSQL = doQuery( "SELECT * FROM cuboids_chunks")
     val actionBlocksSQL = doQuery( "SELECT * FROM action_blocks WHERE plugin='ccCuboids' and type='tent_core'")
 
@@ -66,6 +71,8 @@ class Plugin: JavaPlugin(), Listener {
       actionBlocksSQL.getInt( "y" ),
       actionBlocksSQL.getInt( "z" )
     ), ActionBlock( actionBlocksSQL.getString( "type" ) ) )
+
+    while ( cuboidsSQL.next() ) cuboids.set( cuboidsSQL.getInt( "id" ), buildCuboidFromQuery( cuboidsSQL ) )
   }
   override fun onDisable() {
     connection.close()
@@ -114,42 +121,16 @@ class Plugin: JavaPlugin(), Listener {
   }
 
   @EventHandler
-  public fun onChunkLoad( e:ChunkLoadEvent ) {
-    if ( e.isNewChunk ) return
-
-    val x = e.chunk.getX()
-    val z = e.chunk.getZ()
-    val world = e.chunk.world.name
-    val cuboidChunk = cuboidsChunks.find { it.x == x && it.z == z && it.world == world } ?: return
-    val cuboidId = cuboidChunk.cuboidId
-
-    activeCuboidsChunks.add( cuboidChunk )
-
-    if ( !cuboids.containsKey( cuboidId ) ) cuboids.set( cuboidId, getCuboid( cuboidId )!! )
-  }
-  @EventHandler
-  public fun onChunkUnload( e:ChunkUnloadEvent ) {
-    val x = e.chunk.getX()
-    val z = e.chunk.getZ()
-    val world = e.chunk.world.name
-    val cuboidChunk = cuboidsChunks.find { it.x == x && it.z == z && it.world == world } ?: return
-    val cuboidId = cuboidChunk.cuboidId
-
-    activeCuboidsChunks.remove( cuboidChunk )
-
-    if ( activeCuboidsChunks.find { it.cuboidId == cuboidId } != null ) return
-
-    cuboids.remove( cuboidId )
-  }
-  @EventHandler
   public fun onPlayerMove( e:PlayerMoveEvent ) {
     val chunkTo = e.to?.chunk ?: return
     val chunkFrom = e.from.chunk
 
     if ( chunkTo == chunkFrom ) return
 
-    val cuboidChunkTo = activeCuboidsChunks.find { it.x == chunkTo.getX() && it.z == chunkTo.getZ() }
-    val cuboidChunkFrom = activeCuboidsChunks.find { it.x == chunkFrom.getX() && it.z == chunkFrom.getZ() }
+    // val cuboidChunkTo = activeCuboidsChunks.find { it.x == chunkTo.x && it.z == chunkTo.z }
+    // val cuboidChunkFrom = activeCuboidsChunks.find { it.x == chunkFrom.x && it.z == chunkFrom.z }
+    val cuboidChunkTo = getCuboidChunk( chunkTo.x, chunkTo.z, chunkTo.world.name )
+    val cuboidChunkFrom = getCuboidChunk( chunkFrom.x, chunkFrom.z, chunkFrom.world.name )
 
     if ( (cuboidChunkFrom == null) == (cuboidChunkTo == null) ) return
     if ( cuboidChunkFrom == null ) {
@@ -164,13 +145,39 @@ class Plugin: JavaPlugin(), Listener {
     }
   }
   @EventHandler
-  public fun onPlayerInteract( e:PlayerInteractEvent ) {
-    val block = e.clickedBlock
-    val player = e.player
-    val chunk = if ( block == null ) player.location.chunk else block.chunk
+  public fun onEntityExplode( e:EntityExplodeEvent ) {
+    val blocksList = e.blockList()
+    val blocksListTemp = mutableSetOf<Block>()
+    val worldName = e.entity.world.name
 
-    if ( !canPlayerInfere( chunk, e.player ) ) {
+    if ( e.entityType == EntityType.CREEPER && worldName == "world" ) blocksList.clear()
+    else {
+      for ( block in blocksList ) {
+        val chunk = block.chunk
+
+        if ( getCuboidChunk( chunk.x, chunk.z, chunk.world.name ) != null ) blocksListTemp.add( block )
+      }
+
+      blocksListTemp.forEach { blocksList.remove( it ) }
+    }
+  }
+  @EventHandler
+  public fun onPlayerInteract( e:PlayerInteractEvent ) {
+    val block = e.clickedBlock ?: return
+    val player = e.player
+
+    if ( !canPlayerInfere( block.chunk, player ) ) {
       createChatError( "Nie możesz ingerować na tym terenie!", player )
+      e.setCancelled( true )
+    }
+  }
+  @EventHandler
+  public fun onDamage( e:EntityDamageByEntityEvent ) {
+    val damager = e.damager
+
+    if ( damager !is Player ) return
+    if ( !canPlayerInfere( e.entity.location.chunk, damager ) ) {
+      createChatError( "Nie możesz ingerować na tym terenie!", damager )
       e.setCancelled( true )
     }
   }
@@ -191,9 +198,9 @@ class Plugin: JavaPlugin(), Listener {
         e.setCancelled( true )
       }
       else {
-        val x = block.getX()
-        val y = block.getY()
-        val z = block.getZ()
+        val x = block.x
+        val y = block.y
+        val z = block.z
 
         doUpdatingQuery(
           "INSERT INTO action_blocks (plugin, type, x, y, z) VALUES ('ccCuboids', 'tent_core', $x, $y, $z)"
@@ -208,9 +215,9 @@ class Plugin: JavaPlugin(), Listener {
   public fun onBlockBreak( e:BlockBreakEvent ) {
     val player = e.player
     val block = e.block
-    val x = block.getX()
-    val y = block.getY()
-    val z = block.getZ()
+    val x = block.x
+    val y = block.y
+    val z = block.z
 
     if ( block.type == Material.CAMPFIRE ) {
       actionBlocks.remove( Triple( x, y, z ) ) ?: return
@@ -229,8 +236,8 @@ class Plugin: JavaPlugin(), Listener {
     .executeUpdate()
 
   fun isGoodPlaceForCuboid( chunk:Chunk, type:CuboidType ):Boolean {
-    val newCuboidX = chunk.getX()
-    val newCuboidZ = chunk.getZ()
+    val newCuboidX = chunk.x
+    val newCuboidZ = chunk.z
     val REGION = CuboidType.REGION
 
     for ( cuboidChunk in cuboidsChunks ) {
@@ -248,9 +255,7 @@ class Plugin: JavaPlugin(), Listener {
     return canPlayerInfere( chunk, player.uniqueId.toString() )
   }
   fun canPlayerInfere( chunk:Chunk, playerUUID:String ):Boolean {
-    val x = chunk.getX()
-    val z = chunk.getZ()
-    val cuboidId = cuboidsChunks.find { it.x == x && it.z == z }?.cuboidId ?: return true
+    val cuboidId = getCuboidChunk( chunk.x, chunk.z, chunk.world.name )?.cuboidId ?: return true
     val cuboid = getCuboid( cuboidId )!!
 
     for ( member in cuboid.members.values )
@@ -304,6 +309,9 @@ class Plugin: JavaPlugin(), Listener {
 
     return buildCuboidFromQuery( cuboid )
   }
+  fun getCuboidChunk( x:Int, z:Int, worldName:String ):CuboidChunk? {
+    return cuboidsChunks.find { it.x == x && it.z == z && it.world == worldName }
+  }
   fun buildCuboidFromQuery( cuboidFromQuery:ResultSet ):Cuboid {
     val id = cuboidFromQuery.getInt( "id" )
     val membersSQL = doQuery( "SELECT * FROM cuboids_members WHERE cuboidId=$id" )
@@ -349,8 +357,8 @@ class Plugin: JavaPlugin(), Listener {
 
     val worldName = chunk.world.name
     val newCuboidId = newCuboid.id
-    val x = chunk.getX()
-    val z = chunk.getZ()
+    val x = chunk.x
+    val z = chunk.z
     val cuboidChunk = CuboidChunk( x, z, worldName, newCuboidId )
 
     doUpdatingQuery(
@@ -362,7 +370,7 @@ class Plugin: JavaPlugin(), Listener {
 
     newCuboid.members.set( playerUUID, CuboidMember( playerUUID, true, true))
 
-    if( chunk.isLoaded ) activeCuboidsChunks.add( cuboidChunk )
+    // if( chunk.isLoaded ) activeCuboidsChunks.add( cuboidChunk )
     cuboidsChunks.add( cuboidChunk )
     cuboids.set( newCuboidId, newCuboid )
 
@@ -380,9 +388,39 @@ class Plugin: JavaPlugin(), Listener {
     doUpdatingQuery( "DELETE FROM cuboids_members WHERE cuboidId=$id" )
 
     cuboidsChunks.removeAll { it.cuboidId == id }
-    activeCuboidsChunks.removeAll { it.cuboidId == id }
+    // activeCuboidsChunks.removeAll { it.cuboidId == id }
     cuboids.entries.removeIf { it.value.id == id }
 
     return true
   }
 }
+
+
+// * Something is wrong with nether chunks coordinates - that's why it is commented
+//
+// @EventHandler
+// public fun onChunkLoad( e:ChunkLoadEvent ) {
+//   if ( e.isNewChunk ) return
+//
+//   val chunk = e.chunk
+//   val cuboidChunk = getCuboidChunk( chunk.x, chunk.z, chunk.world.name ) ?: return
+//   val cuboidId = cuboidChunk.cuboidId
+//
+//   activeCuboidsChunks.add( cuboidChunk )
+//
+//   logger.info( "${activeCuboidsChunks.toString()}" )
+//
+//   if ( !cuboids.containsKey( cuboidId ) ) cuboids.set( cuboidId, getCuboid( cuboidId )!! )
+// }
+// @EventHandler
+// public fun onChunkUnload( e:ChunkUnloadEvent ) {
+//   val chunk = e.chunk
+//   val cuboidChunk = getCuboidChunk( chunk.x, chunk.z, chunk.world.name ) ?: return
+//   val cuboidId = cuboidChunk.cuboidId
+
+//   activeCuboidsChunks.remove( cuboidChunk )
+
+//   if ( activeCuboidsChunks.find { it.cuboidId == cuboidId } != null ) return
+
+//   cuboids.remove( cuboidId )
+// }
