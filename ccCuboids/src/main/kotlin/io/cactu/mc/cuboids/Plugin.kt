@@ -45,6 +45,12 @@ class Plugin: JavaPlugin(), Listener {
   val password = "0496eb9412992801d273"
   val connection = DriverManager.getConnection( "jdbc:mysql://$host:$port/$database" , username, password )
 
+  val messageYouCannotInfereHere = "Nie możesz ingerować na tym obszarze!"
+  val messageYoucannotPlaceCampfire = "Ogniska można stawiać jedynie na zabezpieczonym terenie, oraz gdy nie posiada się obozowiska"
+  val messageTentTooCloseToAnotherCuboid = "Znajdujesz się zbyt blisko jakiegoś regionu aby zabezpieczyć ten chunk"
+  val messageTentCreated = "Obozowisko &3rozbite pomyślnie"
+  val messageTentRemoved = "Obozowisko &3rozebrane pomyślnie"
+
   val distanceTentFromCuboid = 2
   val distanceCuboidFromCuboid = 11
   val cuboidsChunks = mutableSetOf<CuboidChunk>()
@@ -167,7 +173,7 @@ class Plugin: JavaPlugin(), Listener {
     val player = e.player
 
     if ( !canPlayerInfere( block.chunk, player ) ) {
-      createChatError( "Nie możesz ingerować na tym terenie!", player )
+      createChatError( messageYouCannotInfereHere, player )
       e.setCancelled( true )
     }
   }
@@ -177,7 +183,7 @@ class Plugin: JavaPlugin(), Listener {
 
     if ( damager !is Player ) return
     if ( !canPlayerInfere( e.entity.location.chunk, damager ) ) {
-      createChatError( "Nie możesz ingerować na tym terenie!", damager )
+      createChatError( messageYouCannotInfereHere, damager )
       e.setCancelled( true )
     }
   }
@@ -188,13 +194,11 @@ class Plugin: JavaPlugin(), Listener {
 
     if ( block.type == Material.CAMPFIRE ) {
       if ( getCuboid( player, CuboidType.TENT ) != null ) {
-        createChatInfo(
-          "Ogniska można stawiać jedynie na zabezpieczonym terenie, oraz gdy nie posiada się obozowiska", player
-        )
+        createChatInfo( messageYoucannotPlaceCampfire, player )
         e.setCancelled( true )
       }
       else if ( !isGoodPlaceForCuboid( block.chunk, CuboidType.TENT ) ) {
-        createChatInfo( "Znajdujesz się zbyt blisko jakiegoś regionu aby zabezpieczyć ten chunk", player )
+        createChatInfo( messageTentTooCloseToAnotherCuboid, player )
         e.setCancelled( true )
       }
       else {
@@ -207,7 +211,7 @@ class Plugin: JavaPlugin(), Listener {
         )
         createCuboid( "Obozowisko gracza ${player.displayName}", CuboidType.TENT, player, block.chunk )
         actionBlocks.set( Triple( x, y, z ), ActionBlock( "tent_core" ) )
-        createChatInfo( "Obozowisko rozbite pomyślnie", player )
+        createChatInfo( messageTentCreated, player )
       }
     }
   }
@@ -224,7 +228,7 @@ class Plugin: JavaPlugin(), Listener {
 
       removeCuboid( "Obozowisko gracza ${player.displayName}" )
       doUpdatingQuery( "DELETE FROM action_blocks WHERE x=$x and y=$y and z=$z" )
-      createChatInfo( "Obozowisko rozebrane pomyślnie", player )
+      createChatInfo( messageTentRemoved, player )
     }
   }
 
