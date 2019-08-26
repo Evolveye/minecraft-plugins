@@ -6,13 +6,21 @@ import org.bukkit.command.Command
 import org.bukkit.block.Block
 import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
+import org.bukkit.event.Listener
 import org.bukkit.event.EventHandler
 import org.bukkit.event.entity.EntityExplodeEvent
+import org.bukkit.event.block.BlockBreakEvent
+import org.bukkit.GameMode
+import org.bukkit.Material
+import org.bukkit.inventory.ItemStack
 import org.bukkit.Location
 import org.bukkit.WorldCreator
 
-class Plugin: JavaPlugin() {
+class Plugin: JavaPlugin(), Listener {
+  val logsBreakers = setOf( Material.STONE_AXE, Material.IRON_AXE, Material.DIAMOND_AXE )
+
   override fun onEnable() {
+    server.pluginManager.registerEvents( this, this )
     server.createWorld( WorldCreator( "world_heaven" ) )
   }
   override fun onCommand( sender:CommandSender, command:Command, label:String, args:Array<String> ):Boolean {
@@ -34,7 +42,6 @@ class Plugin: JavaPlugin() {
     return true
   }
 
-
   @EventHandler
   public fun onEntityExplode( e:EntityExplodeEvent ) {
     val worldName = e.entity.world.name
@@ -48,6 +55,36 @@ class Plugin: JavaPlugin() {
 
       // blocksListTemp.forEach { blocksList.remove( it ) }
     }
+  }
+  @EventHandler
+  public fun onBlockBreak( e:BlockBreakEvent ) {
+    val player = e.player
 
+    if ( player.world.name != "world_heaven" ) return
+    if ( player.gameMode == GameMode.CREATIVE ) return
+
+    val block = e.block
+    val world = block.world
+    val location = block.location
+    val type = block.type
+    val typeStr = "${block.type}"
+    val itemInMainHand = player.inventory.itemInMainHand
+
+    if ( typeStr.contains( "_LOG" ) && !logsBreakers.contains( itemInMainHand.type ) ) {
+      val planksCount = Math.ceil( Math.random() * 3 ).toInt()
+
+      e.setDropItems( false )
+
+      if ( typeStr.contains( "OAK" ) )           world.dropItem( location, ItemStack( Material.OAK_PLANKS, planksCount ) )
+      else if ( typeStr.contains( "BIRCH" ) )    world.dropItem( location, ItemStack( Material.BIRCH_PLANKS, planksCount ) )
+      else if ( typeStr.contains( "SPRUCE" ) )   world.dropItem( location, ItemStack( Material.SPRUCE_PLANKS, planksCount ) )
+      else if ( typeStr.contains( "JUNGLE" ) )   world.dropItem( location, ItemStack( Material.JUNGLE_PLANKS, planksCount ) )
+      else if ( typeStr.contains( "DARK_OAK" ) ) world.dropItem( location, ItemStack( Material.DARK_OAK_PLANKS, planksCount ) )
+      else if ( typeStr.contains( "ACACIA" ) )   world.dropItem( location, ItemStack( Material.ACACIA_PLANKS, planksCount ) )
+      else e.setDropItems( true )
+    }
+    else if ( typeStr.contains( "STONE" ) && itemInMainHand.type == Material.WOODEN_PICKAXE ) {
+      e.setDropItems( false )
+    }
   }
 }

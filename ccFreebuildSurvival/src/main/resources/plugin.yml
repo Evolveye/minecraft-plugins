@@ -2,6 +2,7 @@ main: io.cactu.mc.fbsurv.Plugin
 name: ccFreebuildSurvival
 version: 0.7
 
+api-version: 1.14
 depend: [ KotlinRuntime ]
 
 commands:
