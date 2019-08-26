@@ -1,6 +1,10 @@
 package io.cactu.mc.fbsurv
 
+import io.cactu.mc.doQuery
+import io.cactu.mc.chat.createChatInfo
 import org.bukkit.plugin.java.JavaPlugin
+import org.bukkit.potion.PotionEffect
+import org.bukkit.potion.PotionEffectType
 import org.bukkit.command.CommandSender
 import org.bukkit.command.Command
 import org.bukkit.block.Block
@@ -8,25 +12,42 @@ import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
 import org.bukkit.event.Listener
 import org.bukkit.event.EventHandler
+import org.bukkit.event.block.Action
+import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.entity.EntityExplodeEvent
 import org.bukkit.event.entity.EntityDeathEvent
-import org.bukkit.event.block.BlockBreakEvent
+import org.bukkit.event.player.PlayerInteractEvent
+// import org.bukkit.event.inventory.InventoryCloseEvent
+import org.bukkit.event.inventory.InventoryType
 import org.bukkit.GameMode
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
 import org.bukkit.Location
 import org.bukkit.WorldCreator
 
+data class ActionBlock( val x:Int, val y:Int, val z:Int, val world:String, val type:String )
+
 class Plugin: JavaPlugin(), Listener {
   val logsBreakers = setOf( Material.STONE_AXE, Material.IRON_AXE, Material.DIAMOND_AXE )
   val maxCountOfPlanksFromLogs = 3
   val minCountOfPlanksFromLogs = 1
   val maxCountOfGunpowderFromCreeper = 3
-  val minCountOfGunpowderFromCreeper = 2
+  val minCountOfGunpowderFromCreeper = 1
+  val actionBlocks = mutableSetOf<ActionBlock>()
 
   override fun onEnable() {
     server.pluginManager.registerEvents( this, this )
     server.createWorld( WorldCreator( "world_heaven" ) )
+
+    val actionBlocksSQL = doQuery( "SELECT * FROM action_blocks WHERE plugin='ccFreebuildSurvival'")
+
+    while ( actionBlocksSQL.next() ) actionBlocks.add( ActionBlock(
+      actionBlocksSQL.getInt( "x" ),
+      actionBlocksSQL.getInt( "y" ),
+      actionBlocksSQL.getInt( "z" ),
+      actionBlocksSQL.getString( "world" ),
+      actionBlocksSQL.getString( "type" )
+    ) )
   }
   override fun onCommand( sender:CommandSender, command:Command, label:String, args:Array<String> ):Boolean {
     if ( sender !is Player ) return false
@@ -35,8 +56,8 @@ class Plugin: JavaPlugin(), Listener {
     val worldname = player.location.world?.name ?: return false
 
     val world =
-      if ( worldname == "world" ) Location( server.getWorld( "world_heaven" )!!, 100.0, 57.0, -10.0 )
-      else Location( server.getWorld( "world" )!!, -34.0, 71.0, -573.0 )
+      if ( worldname == "world" ) Location( server.getWorld( "world_heaven" )!!, 100.5, 58.0, -15.5 )
+      else Location( server.getWorld( "world" )!!, -34.5, 71.0, -573.5 )
 
     player.teleport( world )
 
@@ -96,6 +117,31 @@ class Plugin: JavaPlugin(), Listener {
 
       entity.world.dropItem( entity.location, ItemStack( Material.GUNPOWDER, gunpowderCount ) )
       e.drops.clear()
+    }
+  }
+  @EventHandler
+  public fun onInventoryClose( e:PlayerInteractEvent ) {
+    val block = e.clickedBlock ?: return
+
+    if ( e.action == Action.RIGHT_CLICK_BLOCK && block.type == Material.DISPENSER ) {
+      val player = e.player
+      val location = block.location
+      val x = location.x.toInt()
+      val y = location.y.toInt()
+      val z = location.z.toInt()
+      val world = location.world?.name ?: return
+      val actionBlock = actionBlocks.find { it.x == x && it.y == y && it.z == z && it.world == world } ?: return
+
+      e.setCancelled( true )
+
+      when ( actionBlock.type ) {
+        "elytra_launcher" -> {
+          if ( player.equipment?.chestplate?.type == Material.ELYTRA ) player.addPotionEffects( mutableSetOf(
+            PotionEffect( PotionEffectType.LEVITATION, 80, 50, false, false, false )
+          ) )
+          else createChatInfo( "Aby użyć wyrzutni musisz mieć na sobie elytrę", player )
+        }
+      }
     }
   }
 

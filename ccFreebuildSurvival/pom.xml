@@ -36,6 +36,18 @@
       <version>1.0-SNAPSHOT</version>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>io.cactu.mc</groupId>
+      <artifactId>db-utils</artifactId>
+      <version>1.0-SNAPSHOT</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.cactu.mc.chat</groupId>
+      <artifactId>ccChat</artifactId>
+      <version>1.0-SNAPSHOT</version>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 
   <build>

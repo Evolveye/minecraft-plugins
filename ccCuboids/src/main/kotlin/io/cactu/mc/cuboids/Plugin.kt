@@ -27,7 +27,7 @@ import org.bukkit.event.entity.EntityExplodeEvent
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 
 enum class CuboidType { TENT, REGION, COLONY }
-data class ActionBlock( val type:String )
+data class ActionBlock( val x:Int, val y:Int, val z:Int, val world:String, val type:String )
 data class CuboidChunk( val x:Int, val z:Int, val world:String, val cuboidId:Int )
 data class CuboidMember( val UUID:String, val owner:Boolean, val manager:Boolean )
 data class Cuboid(
@@ -49,7 +49,7 @@ class Plugin: JavaPlugin(), Listener {
   val distanceCuboidFromCuboid = 11
   val cuboidsChunks = mutableSetOf<CuboidChunk>()
   // val activeCuboidsChunks = mutableSetOf<CuboidChunk>()
-  val actionBlocks = mutableMapOf<Triple<Int,Int,Int>,ActionBlock>()
+  val actionBlocks = mutableSetOf<ActionBlock>()
   val cuboids = mutableMapOf<Int,Cuboid>()
 
   override fun onEnable() {
@@ -66,11 +66,13 @@ class Plugin: JavaPlugin(), Listener {
       cuboidsChunksSQL.getInt( "cuboidId" )
     ) )
 
-    while ( actionBlocksSQL.next() ) actionBlocks.set( Triple(
+    while ( actionBlocksSQL.next() ) actionBlocks.add( ActionBlock(
       actionBlocksSQL.getInt( "x" ),
       actionBlocksSQL.getInt( "y" ),
-      actionBlocksSQL.getInt( "z" )
-    ), ActionBlock( actionBlocksSQL.getString( "type" ) ) )
+      actionBlocksSQL.getInt( "z" ),
+      actionBlocksSQL.getString( "world" ),
+      actionBlocksSQL.getString( "type" )
+    ) )
 
     while ( cuboidsSQL.next() ) cuboids.set( cuboidsSQL.getInt( "id" ), buildCuboidFromQuery( cuboidsSQL ) )
   }
@@ -195,12 +197,13 @@ class Plugin: JavaPlugin(), Listener {
         val x = block.x
         val y = block.y
         val z = block.z
+        val world = block.world.name
 
         doUpdatingQuery(
-          "INSERT INTO action_blocks (plugin, type, x, y, z) VALUES ('ccCuboids', 'tent_core', $x, $y, $z)"
+          "INSERT INTO action_blocks (plugin, type, world, x, y, z) VALUES ('ccCuboids', 'tent_core', '$world', $x, $y, $z)"
         )
         createCuboid( "Obozowisko gracza ${player.displayName}", CuboidType.TENT, player, block.chunk )
-        actionBlocks.set( Triple( x, y, z ), ActionBlock( "tent_core" ) )
+        actionBlocks.add( ActionBlock( x, y, z, block.world.name, "tent_core" ) )
         createChatInfo( messageTentCreated, player )
       }
     }
@@ -209,15 +212,17 @@ class Plugin: JavaPlugin(), Listener {
   public fun onBlockBreak( e:BlockBreakEvent ) {
     val player = e.player
     val block = e.block
-    val x = block.x
-    val y = block.y
-    val z = block.z
 
     if ( block.type == Material.CAMPFIRE ) {
-      actionBlocks.remove( Triple( x, y, z ) ) ?: return
+      val x = block.x
+      val y = block.y
+      val z = block.z
+      val world = block.world.name
+
+      if ( !actionBlocks.removeIf { it.x == x && it.y == y && it.z == z && it.world == world } ) return
 
       removeCuboid( "Obozowisko gracza ${player.displayName}" )
-      doUpdatingQuery( "DELETE FROM action_blocks WHERE x=$x and y=$y and z=$z" )
+      doUpdatingQuery( "DELETE FROM action_blocks WHERE x=$x and y=$y and z=$z and world='$world'" )
       createChatInfo( messageTentRemoved, player )
     }
   }
