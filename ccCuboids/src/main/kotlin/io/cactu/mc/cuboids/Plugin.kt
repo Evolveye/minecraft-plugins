@@ -163,7 +163,10 @@ class Plugin: JavaPlugin(), Listener {
   public fun onPlayerInteract( e:PlayerInteractEvent ) {
     val block = e.clickedBlock ?: return
     val player = e.player
+    val typeStr = block.type.toString()
 
+    if ( !typeStr.contains( "STONE" ) && (typeStr.contains( "BUTTON" ) || typeStr.contains( "PLATE" ) ) ) return
+    if ( typeStr.contains( "DOOR" ) && block.type != Material.IRON_DOOR ) return
     if ( !canPlayerInfere( block.chunk, player ) ) {
       createChatError( messageYouCannotInfereHere, player )
       e.setCancelled( true )
