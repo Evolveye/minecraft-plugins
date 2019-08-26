@@ -13,6 +13,7 @@ import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 import org.bukkit.entity.EntityType
+import org.bukkit.entity.TNTPrimed
 import org.bukkit.event.Listener
 import org.bukkit.event.EventHandler
 import org.bukkit.event.block.BlockCanBuildEvent
@@ -142,12 +143,15 @@ class Plugin: JavaPlugin(), Listener {
   }
   @EventHandler
   public fun onEntityExplode( e:EntityExplodeEvent ) {
+    val entity = e.entity
     val blocksList = e.blockList()
     val blocksListTemp = mutableSetOf<Block>()
+    val isTntFiredByPlayer = entity is TNTPrimed && entity.source is Player
 
     for ( block in blocksList ) {
       val chunk = block.chunk
 
+      if ( isTntFiredByPlayer && canPlayerInfere( chunk, (entity as TNTPrimed).source as Player ) ) continue
       if ( getCuboidChunk( chunk.x, chunk.z, chunk.world.name ) != null ) blocksListTemp.add( block )
     }
 

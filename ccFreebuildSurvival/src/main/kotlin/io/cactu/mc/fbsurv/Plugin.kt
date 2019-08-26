@@ -34,13 +34,9 @@ class Plugin: JavaPlugin(), Listener {
     val player:Player = sender
     val worldname = player.location.world?.name ?: return false
 
-    logger.info( "player is a world" )
-
     val world =
       if ( worldname == "world" ) Location( server.getWorld( "world_heaven" )!!, 100.0, 57.0, -10.0 )
       else Location( server.getWorld( "world" )!!, -34.0, 71.0, -573.0 )
-
-    logger.info( "world setted" )
 
     player.teleport( world )
 
@@ -71,7 +67,6 @@ class Plugin: JavaPlugin(), Listener {
     val block = e.block
     val world = block.world
     val location = block.location
-    val type = block.type
     val typeStr = "${block.type}"
     val itemInMainHand = player.inventory.itemInMainHand
 
