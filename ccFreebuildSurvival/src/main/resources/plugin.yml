@@ -1,0 +1,10 @@
+main: io.cactu.mc.fbsurv.Plugin
+name: ccFreebuildSurvival
+version: 0.7
+
+depend: [ KotlinRuntime ]
+
+commands:
+  toggleWorld:
+    description: Wejdź/wyjdź do/z nieba
+    usage: /<command>

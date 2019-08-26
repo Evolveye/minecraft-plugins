@@ -1,5 +1,0 @@
-main: io.cactu.mc.achievements.Plugin
-name: ccAchievements
-version: 0.7
-
-depend: [ KotlinRuntime, DbUtils, ccChat ]

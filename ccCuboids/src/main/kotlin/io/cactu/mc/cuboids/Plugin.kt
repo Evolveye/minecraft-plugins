@@ -144,18 +144,14 @@ class Plugin: JavaPlugin(), Listener {
   public fun onEntityExplode( e:EntityExplodeEvent ) {
     val blocksList = e.blockList()
     val blocksListTemp = mutableSetOf<Block>()
-    val worldName = e.entity.world.name
 
-    if ( e.entityType == EntityType.CREEPER && worldName == "world" ) blocksList.clear()
-    else {
-      for ( block in blocksList ) {
-        val chunk = block.chunk
+    for ( block in blocksList ) {
+      val chunk = block.chunk
 
-        if ( getCuboidChunk( chunk.x, chunk.z, chunk.world.name ) != null ) blocksListTemp.add( block )
-      }
-
-      blocksListTemp.forEach { blocksList.remove( it ) }
+      if ( getCuboidChunk( chunk.x, chunk.z, chunk.world.name ) != null ) blocksListTemp.add( block )
     }
+
+    blocksListTemp.forEach { blocksList.remove( it ) }
   }
   @EventHandler
   public fun onPlayerInteract( e:PlayerInteractEvent ) {
