@@ -9,6 +9,7 @@ import org.bukkit.entity.Player
 import org.bukkit.event.Listener
 import org.bukkit.event.EventHandler
 import org.bukkit.event.entity.EntityExplodeEvent
+import org.bukkit.event.entity.EntityDeathEvent
 import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.GameMode
 import org.bukkit.Material
@@ -18,6 +19,10 @@ import org.bukkit.WorldCreator
 
 class Plugin: JavaPlugin(), Listener {
   val logsBreakers = setOf( Material.STONE_AXE, Material.IRON_AXE, Material.DIAMOND_AXE )
+  val maxCountOfPlanksFromLogs = 3
+  val minCountOfPlanksFromLogs = 1
+  val maxCountOfGunpowderFromCreeper = 3
+  val minCountOfGunpowderFromCreeper = 2
 
   override fun onEnable() {
     server.pluginManager.registerEvents( this, this )
@@ -71,7 +76,7 @@ class Plugin: JavaPlugin(), Listener {
     val itemInMainHand = player.inventory.itemInMainHand
 
     if ( typeStr.contains( "_LOG" ) && !logsBreakers.contains( itemInMainHand.type ) ) {
-      val planksCount = Math.ceil( Math.random() * 3 ).toInt()
+      val planksCount = random( minCountOfPlanksFromLogs, maxCountOfPlanksFromLogs )
 
       e.setDropItems( false )
 
@@ -86,5 +91,20 @@ class Plugin: JavaPlugin(), Listener {
     else if ( typeStr.contains( "STONE" ) && itemInMainHand.type == Material.WOODEN_PICKAXE ) {
       e.setDropItems( false )
     }
+  }
+  @EventHandler
+  public fun onEntityDeath( e:EntityDeathEvent ) {
+    val entity = e.entity
+
+    if ( entity.type == EntityType.CREEPER ) {
+      val gunpowderCount = random( minCountOfGunpowderFromCreeper, maxCountOfGunpowderFromCreeper )
+
+      entity.world.dropItem( entity.location, ItemStack( Material.GUNPOWDER, gunpowderCount ) )
+      e.drops.clear()
+    }
+  }
+
+  fun random( min:Int, max:Int ):Int {
+    return Math.floor( Math.random() * (max - min + 1) ).toInt() + min
   }
 }
