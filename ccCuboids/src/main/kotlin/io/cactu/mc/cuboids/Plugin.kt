@@ -2,8 +2,8 @@ package io.cactu.mc.cuboids
 
 import io.cactu.mc.chat.createChatInfo
 import io.cactu.mc.chat.createChatError
-import java.sql.DriverManager
-import java.sql.Connection
+import io.cactu.mc.doQuery
+import io.cactu.mc.doUpdatingQuery
 import java.sql.ResultSet
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.Chunk
@@ -38,13 +38,6 @@ data class Cuboid(
 )
 
 class Plugin: JavaPlugin(), Listener {
-  val host = "mysql.csrv.pl"
-  val port = 3306
-  val database = "csrv_651128"
-  val username = "csrv_651128"
-  val password = "0496eb9412992801d273"
-  val connection = DriverManager.getConnection( "jdbc:mysql://$host:$port/$database" , username, password )
-
   val messageYouCannotInfereHere = "Nie możesz ingerować na tym obszarze!"
   val messageYoucannotPlaceCampfire = "Ogniska można stawiać jedynie na zabezpieczonym terenie, oraz gdy nie posiada się obozowiska"
   val messageTentTooCloseToAnotherCuboid = "Znajdujesz się zbyt blisko jakiegoś regionu aby zabezpieczyć ten chunk"
@@ -79,9 +72,6 @@ class Plugin: JavaPlugin(), Listener {
     ), ActionBlock( actionBlocksSQL.getString( "type" ) ) )
 
     while ( cuboidsSQL.next() ) cuboids.set( cuboidsSQL.getInt( "id" ), buildCuboidFromQuery( cuboidsSQL ) )
-  }
-  override fun onDisable() {
-    connection.close()
   }
   override fun onTabComplete( sender:CommandSender, command:Command, label:String, args:Array<String> ):List<String>? {
     if ( args.size == 1 ) return listOf( "create", "remove" )
@@ -231,13 +221,6 @@ class Plugin: JavaPlugin(), Listener {
       createChatInfo( messageTentRemoved, player )
     }
   }
-
-  fun doQuery( query:String ):ResultSet = connection
-    .prepareStatement( query )
-    .executeQuery()
-  fun doUpdatingQuery( query:String ):Int = connection
-    .prepareStatement( query )
-    .executeUpdate()
 
   fun isGoodPlaceForCuboid( chunk:Chunk, type:CuboidType ):Boolean {
     val newCuboidX = chunk.x

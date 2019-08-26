@@ -3,7 +3,7 @@ name: ccCuboids
 version: 0.1
 
 api-version: 1.14
-depend: [ KotlinRuntime, ccChat ]
+depend: [ KotlinRuntime, DbUtils, ccChat ]
 
 commands:
   cuboids:
