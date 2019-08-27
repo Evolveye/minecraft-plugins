@@ -2,12 +2,18 @@ package io.cactu.mc.fbsurv
 
 import io.cactu.mc.doQuery
 import io.cactu.mc.chat.createChatInfo
+import io.cactu.mc.chat.createChatError
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 import org.bukkit.command.CommandSender
 import org.bukkit.command.Command
 import org.bukkit.block.Block
+import org.bukkit.block.BlockFace
+
+import org.bukkit.block.data.Directional
+import org.bukkit.block.data.type.Piston
+
 import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
 import org.bukkit.event.Listener
@@ -26,14 +32,22 @@ import org.bukkit.Location
 import org.bukkit.WorldCreator
 
 data class ActionBlock( val x:Int, val y:Int, val z:Int, val world:String, val type:String )
+data class Postument(
+  val name:String,
+  val x:Int,
+  val y:Int,
+  val structureTester: (Int, Int, Int, Block) -> Boolean,
+  val additionalTests: (Player, Block) -> Boolean
+)
 
 class Plugin: JavaPlugin(), Listener {
-  val logsBreakers = setOf( Material.STONE_AXE, Material.IRON_AXE, Material.DIAMOND_AXE )
+  val logsBreakers = setOf( Material.STONE_AXE, Material.IRON_AXE, Material.GOLDEN_AXE, Material.DIAMOND_AXE )
   val maxCountOfPlanksFromLogs = 3
   val minCountOfPlanksFromLogs = 1
   val maxCountOfGunpowderFromCreeper = 3
   val minCountOfGunpowderFromCreeper = 1
   val actionBlocks = mutableSetOf<ActionBlock>()
+  val postuments = mutableMapOf<String,Postument>()
 
   override fun onEnable() {
     server.pluginManager.registerEvents( this, this )
@@ -48,6 +62,8 @@ class Plugin: JavaPlugin(), Listener {
       actionBlocksSQL.getString( "world" ),
       actionBlocksSQL.getString( "type" )
     ) )
+
+    setPostuments()
   }
   override fun onCommand( sender:CommandSender, command:Command, label:String, args:Array<String> ):Boolean {
     if ( sender !is Player ) return false
@@ -62,6 +78,80 @@ class Plugin: JavaPlugin(), Listener {
     player.teleport( world )
 
     return true
+  }
+
+  fun setPostuments() {
+    postuments.set( "elytra_launcher", Postument( "elytra_launcher", 3, 6,
+      fun( x:Int, y:Int, z:Int, block:Block ):Boolean = when ( Triple( x, y, z ) ) {
+        Triple(  1, 0,  1 ),
+        Triple( -1, 0,  1 ),
+        Triple( -1, 0, -1 ),
+        Triple(  1, 0, -1 ) ->
+          if ( block.blockData is Directional && (block.blockData as Directional).facing == BlockFace.DOWN ) true
+          else false
+        Triple(  1, 1,  1 ),
+        Triple( -1, 1,  1 ),
+        Triple( -1, 1, -1 ),
+        Triple(  1, 1, -1 ) -> if ( "${block.type}".contains( "COBBLESTONE_WALL" ) ) true else false
+        Triple(  1, 2,  1 ),
+        Triple( -1, 2,  1 ),
+        Triple( -1, 2, -1 ),
+        Triple(  1, 2, -1 ) ->
+          if ( "${block.type}".contains( "FENCE" ) && !"${block.type}".contains( "GATE" ) ) true else false
+        Triple(  1, 3,  1 ),
+        Triple( -1, 3,  1 ),
+        Triple( -1, 3, -1 ),
+        Triple(  1, 3, -1 ) -> if ( block.type == Material.END_ROD ) true else false
+        Triple(  1, 4,  1 ),
+        Triple( -1, 4,  1 ),
+        Triple( -1, 4, -1 ),
+        Triple(  1, 4, -1 ) -> if ( "${block.type}".contains( "GLASS_PANE" ) ) true else false
+        Triple(  0, 1,  0 ),
+        Triple(  0, 2,  0 ),
+        Triple(  0, 3,  0 ),
+        Triple(  0, 4,  0 ),
+        Triple(  0, 5,  0 ),
+        Triple(  1, 2,  0 ),
+        Triple( -1, 2,  0 ),
+        Triple(  0, 2,  1 ),
+        Triple(  0, 2, -1 ),
+        Triple(  1, 3,  0 ),
+        Triple( -1, 3,  0 ),
+        Triple(  0, 3,  1 ),
+        Triple(  0, 3, -1 ),
+        Triple(  1, 4,  0 ),
+        Triple( -1, 4,  0 ),
+        Triple(  0, 4,  1 ),
+        Triple(  0, 4, -1 ) -> if ( block.type == Material.AIR ) true else false
+
+        else -> true
+      },
+      fun( player:Player, dispenser:Block ):Boolean {
+        val playerLoc = player.location
+        val dispenserLoc = dispenser.location
+        val pX = Math.floor( playerLoc.x ).toInt()
+        val pY = Math.floor( playerLoc.y ).toInt()
+        val pZ = Math.floor( playerLoc.z ).toInt()
+        val dX = dispenserLoc.x.toInt()
+        val dY = dispenserLoc.y.toInt()
+        val dZ = dispenserLoc.z.toInt()
+
+        if ( pX != dX || pZ != dZ || pY < dY ) {
+          createChatError( "Aby użyć wyrzutni musisz znajdować się nad nią", player )
+          return false
+        }
+        if ( player.equipment?.chestplate?.type != Material.ELYTRA ) {
+          createChatError( "Aby użyć wyrzutni musisz mieć na sobie elytrę", player )
+          return false
+        }
+
+        player.addPotionEffects( mutableSetOf(
+          PotionEffect( PotionEffectType.LEVITATION, 80, 50, false, false, false )
+        ) )
+
+        return true
+      }
+    ) )
   }
 
   @EventHandler
@@ -120,28 +210,32 @@ class Plugin: JavaPlugin(), Listener {
     }
   }
   @EventHandler
-  public fun onInventoryClose( e:PlayerInteractEvent ) {
+  public fun onInteract( e:PlayerInteractEvent ) {
     val block = e.clickedBlock ?: return
 
     if ( e.action == Action.RIGHT_CLICK_BLOCK && block.type == Material.DISPENSER ) {
       val player = e.player
       val location = block.location
-      val x = location.x.toInt()
-      val y = location.y.toInt()
-      val z = location.z.toInt()
+      val intX = location.x.toInt()
+      val intY = location.y.toInt()
+      val intZ = location.z.toInt()
       val world = location.world?.name ?: return
-      val actionBlock = actionBlocks.find { it.x == x && it.y == y && it.z == z && it.world == world } ?: return
+      val actionBlock = actionBlocks.find {
+        it.x == intX && it.y == intY && it.z == intZ && it.world == world
+      } ?: return
+      val postument = postuments.get( actionBlock.type ) ?: return
+      val postumentX:Int = postument.x / 2
+      val postumentY:Int = postument.y - 1
 
       e.setCancelled( true )
 
-      when ( actionBlock.type ) {
-        "elytra_launcher" -> {
-          if ( player.equipment?.chestplate?.type == Material.ELYTRA ) player.addPotionEffects( mutableSetOf(
-            PotionEffect( PotionEffectType.LEVITATION, 80, 50, false, false, false )
-          ) )
-          else createChatInfo( "Aby użyć wyrzutni musisz mieć na sobie elytrę", player )
+      for ( x in -postumentX..postumentX ) for ( z in -postumentX..postumentX ) for ( y in 0..postumentY )
+        if ( !postument.structureTester( x, y, z, block.getRelative( x, y, z ) ) ) {
+          createChatError( "Ten postument ma niewłaściwą strukturę!", player )
+          return
         }
-      }
+
+      if ( !postument.additionalTests( player, block ) ) return
     }
   }
 
