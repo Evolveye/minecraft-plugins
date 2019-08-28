@@ -10,10 +10,7 @@ import org.bukkit.command.CommandSender
 import org.bukkit.command.Command
 import org.bukkit.block.Block
 import org.bukkit.block.BlockFace
-
 import org.bukkit.block.data.Directional
-import org.bukkit.block.data.type.Piston
-
 import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
 import org.bukkit.event.Listener
