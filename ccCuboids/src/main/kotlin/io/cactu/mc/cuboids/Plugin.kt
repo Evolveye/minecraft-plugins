@@ -176,18 +176,25 @@ class Plugin: JavaPlugin(), Listener {
     val chunk = block.chunk
     val player = e.player
     val typeStr = block.type.toString()
-    val cuboid = getCuboid( chunk ) ?: return
     val cuboidMember = getCuboidMember( block.chunk, player.uniqueId.toString() )
+    val cuboid = getCuboid( chunk )
 
     if ( e.action == Action.LEFT_CLICK_BLOCK && player.inventory.itemInMainHand.type == Material.LANTERN ) {
-      if ( cuboidMember == null ) {}
-      else if ( cuboid.type == CuboidType.TENT ) {
-        if ( player.inventory.contains( Material.EMERALD_BLOCK ) ) {
-          player.inventory.removeItem( ItemStack( Material.EMERALD_BLOCK, 1 ) )
+      if ( cuboid == null ) {
+        if ( canPlayerBuyChunk( player, chunk ) ) createChatInfo( "Chunk do kupienia", player )
+      }
+      else {
+        if ( canChunkBeSaled( chunk ) ) createChatInfo( "Chunk na sprzedaż", player )
 
-          updateCuboid( cuboid, CuboidType.REGION )
+        if ( cuboidMember == null ) {}
+        else if ( cuboid.type == CuboidType.TENT ) {
+          if ( player.inventory.contains( Material.EMERALD_BLOCK ) ) {
+            player.inventory.removeItem( ItemStack( Material.EMERALD_BLOCK, 1 ) )
 
-          createChatInfo( "&3Region utworzony pomyślnie", player )
+            updateCuboid( cuboid, CuboidType.REGION )
+
+            createChatInfo( "&3Region utworzony pomyślnie", player )
+          }
         }
       }
 
@@ -205,10 +212,6 @@ class Plugin: JavaPlugin(), Listener {
       }
       else return
     }
-    // if ( !canPlayerInfere( block.chunk, player ) ) {
-    //   createChatError( messageYouCannotInfereHere, player )
-    //   e.setCancelled( true )
-    // }
   }
   @EventHandler
   public fun onDamage( e:EntityDamageByEntityEvent ) {
@@ -291,7 +294,38 @@ class Plugin: JavaPlugin(), Listener {
   fun isChunkCuboid( chunk:Chunk ):Boolean {
     return if ( getCuboidChunk( chunk.x, chunk.z, chunk.world.name ) == null ) false else true
   }
+  fun canPlayerBuyChunk( player:Player, chunk:Chunk ):Boolean {
+    val cuboidId = getCuboid( player )?.id ?: return false
 
+    return canChunkBeBought( cuboidId, chunk )
+  }
+  fun canChunkBeBought( cuboidId:Int, chunk:Chunk ):Boolean {
+    val world = chunk.world.name
+    val baseX = chunk.x
+    val baseZ = chunk.z
+    var chunkHaveCuboidNeighbour = false
+
+    for ( x in -1..1 ) for ( z in -1..1 ) if ( x != 0 || z != 0 ) {
+      val neighbour = getCuboidChunk( baseX + x, baseZ + z, world ) ?: continue
+
+      if ( neighbour.cuboidId != cuboidId ) return false
+      else if ( (Math.abs( x ) == 1) xor (Math.abs( z ) == 1) ) chunkHaveCuboidNeighbour = true
+    }
+
+    return chunkHaveCuboidNeighbour
+  }
+  fun canChunkBeSaled( chunk:Chunk ):Boolean {
+    val world = chunk.world.name
+    val baseX = chunk.x
+    val baseZ = chunk.z
+
+    getCuboidChunk( baseX, baseZ, world ) ?: return false
+
+    for ( x in -1..1 ) for ( z in -1..1 ) if ( (Math.abs( x ) == 1) xor (Math.abs( z ) == 1) )
+      getCuboidChunk( baseX + x, baseZ + z, world ) ?: return true
+
+    return false
+  }
   fun canPlayerInfere( chunk:Chunk, player:Player ):Boolean {
     return canPlayerInfere( chunk, player.uniqueId.toString() )
   }
@@ -477,7 +511,6 @@ class Plugin: JavaPlugin(), Listener {
     }
 
     cuboid.type = type
-    logger.info( cuboid.toString() )
 
     doUpdatingQuery( "UPDATE cuboids SET type='$type', name='${cuboid.name}' WHERE id=${cuboid.id}" )
   }
