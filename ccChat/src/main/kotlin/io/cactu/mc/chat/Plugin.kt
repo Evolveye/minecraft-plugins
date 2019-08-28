@@ -35,14 +35,14 @@ fun replaceVarsToColor( message:String ):String = message
   .replace( "&r", "${ChatColor.RESET}" )
 fun createChatInfo( message:String, sender:CommandSender?=null ):String = createChatInfo( 'i', message, sender )
 fun createChatInfo( sign:Char, message:String, sender:CommandSender?=null ):String {
-  val convertedMessage = replaceVarsToColor( "&D7[&1$sign&D7] $message" )
+  val convertedMessage = replaceVarsToColor( "&D7[&1&b$sign&D7] $message" )
 
   if ( sender != null ) sender.sendMessage( convertedMessage )
 
   return convertedMessage
 }
 fun createChatError( message:String, sender:CommandSender?=null ):String {
-  val convertedMessage = replaceVarsToColor( "&D7[&5X&D7] &1$message" )
+  val convertedMessage = replaceVarsToColor( "&D7[&5&bX&D7] &1$message" )
 
   if ( sender != null ) sender.sendMessage( convertedMessage )
 
@@ -62,7 +62,7 @@ fun createChatMessage( nickname:String, message:String, sender:CommandSender?=nu
   val convertedMessage = (""
     + "${chatInfo.messageColor}[${chatInfo.prefix}]"
     + "${ChatColor.WHITE} $nickname"
-    + "${ChatColor.DARK_GRAY} >>"
+    + "${ChatColor.DARK_GRAY} »"
     + "${chatInfo.messageColor} ${chatInfo.message}"
   )
 
