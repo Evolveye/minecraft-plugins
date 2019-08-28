@@ -330,7 +330,7 @@ class Plugin: JavaPlugin(), Listener {
     return canPlayerInfere( chunk, player.uniqueId.toString() )
   }
   fun canPlayerInfere( chunk:Chunk, playerUUID:String ):Boolean {
-    val cuboidId = getCuboidChunk( chunk.x, chunk.z, chunk.world.name )?.cuboidId ?: return false
+    val cuboidId = getCuboidChunk( chunk.x, chunk.z, chunk.world.name )?.cuboidId ?: return true
     val cuboid = getCuboid( cuboidId )!!
 
     getCuboidMember( cuboid, playerUUID ) ?: return false
