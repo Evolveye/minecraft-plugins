@@ -62,9 +62,6 @@ fun createChatError( message:String, sender:CommandSender?=null ):String {
 
   return convertedMessage
 }
-// fun createChatMode( sign:Char, messageColor:String ):Boolean {
-
-// }
 fun createChatMode( sign:Char, messageColor:ChatColor, test:ChatModeTester, receivers:ChatModeReceivers ):Boolean {
   if ( chatModes.containsKey( sign ) ) return false
 
@@ -73,20 +70,17 @@ fun createChatMode( sign:Char, messageColor:ChatColor, test:ChatModeTester, rece
   return true
 }
 fun createChatMessage( nickname:String, message:String, sender:CommandSender?=null ):String {
-  val deducedChatMode =
-    if ( chatModes.contains( message[ 0 ] ) ) chatModes.get( message[ 0 ] )!!
-    else chatModes.get( defaultSign )!!
-
+  val deducedChatMode = chatModes.get( message[ 0 ] )
   val messageData =
-    if ( message.length > 1 && (sender == null || deducedChatMode.test( sender )) )
+    if ( deducedChatMode != null && message.length > 1 && (sender == null || deducedChatMode.test( sender )) )
       MessageData( deducedChatMode, message.slice( 1..(message.length - 1) ) )
     else MessageData( chatModes.get( defaultSign )!!, message )
 
-  val convertedMessage = with( messageData ) { (""
-    + "${chatMode.messageColor}[${chatMode.prefix}]"
+  val convertedMessage = with( messageData.chatMode ) { (""
+    + "${messageColor}[${prefix}]"
     + "${ChatColor.WHITE} $nickname "
     + "${ChatColor.DARK_GRAY}»"
-    + "${chatMode.messageColor} $message"
+    + "${messageColor} ${messageData.message}"
   ) }
 
   if ( sender != null ) messageData.chatMode.receivers( sender ).forEach { it.sendMessage( convertedMessage ) }

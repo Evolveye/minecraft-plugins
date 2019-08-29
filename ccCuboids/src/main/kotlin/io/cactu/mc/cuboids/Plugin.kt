@@ -2,12 +2,14 @@ package io.cactu.mc.cuboids
 
 import io.cactu.mc.chat.createChatInfo
 import io.cactu.mc.chat.createChatError
+import io.cactu.mc.chat.createChatMode
 import io.cactu.mc.doQuery
 import io.cactu.mc.doUpdatingQuery
 import java.sql.ResultSet
 import java.util.UUID
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.Chunk
+import org.bukkit.ChatColor
 import org.bukkit.Material
 import org.bukkit.block.Block
 import org.bukkit.command.Command
@@ -49,7 +51,7 @@ class Plugin: JavaPlugin(), Listener {
   val messageTentRemoved = "Obozowisko &3rozebrane pomyślnie"
 
   val distanceTentFromCuboid = 2
-  val distanceCuboidFromCuboid = 11
+  val distanceCuboidFromCuboid = 4
   val cuboidsChunks = mutableSetOf<CuboidChunk>()
   // val activeCuboidsChunks = mutableSetOf<CuboidChunk>()
   val actionBlocks = mutableSetOf<ActionBlock>()
@@ -57,6 +59,21 @@ class Plugin: JavaPlugin(), Listener {
 
   override fun onEnable() {
     server.pluginManager.registerEvents( this, this )
+
+    createChatMode( '@', ChatColor.GOLD,
+      test = fun( player:CommandSender ) = if ( getCuboid( player as Player ) == null ) false else true,
+      receivers = fun( player:CommandSender ):MutableSet<Player> {
+        val playersSet = mutableSetOf<Player>()
+
+        getCuboid( player as Player )!!.members.forEach {
+          val cuboidMember = server.getPlayer( UUID.fromString( it.value.UUID ) )
+
+          if ( cuboidMember != null ) playersSet.add( cuboidMember )
+        }
+
+        return playersSet
+      }
+    )
 
     val cuboidsSQL = doQuery( "SELECT * FROM cuboids")
     val cuboidsChunksSQL = doQuery( "SELECT * FROM cuboids_chunks")
