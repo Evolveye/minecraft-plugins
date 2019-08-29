@@ -11,6 +11,20 @@ import org.bukkit.ChatColor
 import org.bukkit.command.CommandSender
 import org.bukkit.command.Command
 
+private val defaultSign = '!'
+private val chatModes = mutableMapOf<Char,ChatMode>()
+
+typealias ChatModeTester = (CommandSender) -> Boolean
+typealias ChatModeReceivers = (CommandSender) -> Collection<Player>
+
+data class MessageData( val chatMode:ChatMode, val message:String )
+data class ChatMode(
+  val prefix:Char,
+  val messageColor:ChatColor,
+  val test:ChatModeTester,
+  val receivers:ChatModeReceivers
+)
+
 fun replaceVarsToColor( message:String ):String = message
   .replace( "&0", "${ChatColor.BLACK}" )
   .replace( "&1", "${ChatColor.WHITE}" )
@@ -48,39 +62,68 @@ fun createChatError( message:String, sender:CommandSender?=null ):String {
 
   return convertedMessage
 }
+// fun createChatMode( sign:Char, messageColor:String ):Boolean {
+
+// }
+fun createChatMode( sign:Char, messageColor:ChatColor, test:ChatModeTester, receivers:ChatModeReceivers ):Boolean {
+  if ( chatModes.containsKey( sign ) ) return false
+
+  chatModes.set( sign, ChatMode( sign, messageColor, test, receivers ) )
+
+  return true
+}
 fun createChatMessage( nickname:String, message:String, sender:CommandSender?=null ):String {
-  val default = ChatInfo( '!', message, ChatColor.GRAY )
-  val chatInfo = if ( message.length == 1 ) default else when ( message[ 0 ] ) {
-    '.' -> ChatInfo( '.', message.substring( 1 ), ChatColor.DARK_AQUA )
-    '!' -> ChatInfo( '!', message.substring( 1 ), ChatColor.GRAY )
-    '@' -> ChatInfo( '@', message.substring( 1 ), ChatColor.GOLD )
-    '>' -> ChatInfo( '>', message.substring( 1 ), ChatColor.GRAY )
+  val deducedChatMode =
+    if ( chatModes.contains( message[ 0 ] ) ) chatModes.get( message[ 0 ] )!!
+    else chatModes.get( defaultSign )!!
 
-    else -> default
-  }
+  val messageData =
+    if ( message.length > 1 && (sender == null || deducedChatMode.test( sender )) )
+      MessageData( deducedChatMode, message.slice( 1..(message.length - 1) ) )
+    else MessageData( chatModes.get( defaultSign )!!, message )
 
-  val convertedMessage = (""
-    + "${chatInfo.messageColor}[${chatInfo.prefix}]"
-    + "${ChatColor.WHITE} $nickname"
-    + "${ChatColor.DARK_GRAY} »"
-    + "${chatInfo.messageColor} ${chatInfo.message}"
-  )
+  val convertedMessage = with( messageData ) { (""
+    + "${chatMode.messageColor}[${chatMode.prefix}]"
+    + "${ChatColor.WHITE} $nickname "
+    + "${ChatColor.DARK_GRAY}»"
+    + "${chatMode.messageColor} $message"
+  ) }
 
-  if ( sender != null ) sender.sendMessage( convertedMessage )
+  if ( sender != null ) messageData.chatMode.receivers( sender ).forEach { it.sendMessage( convertedMessage ) }
 
   return convertedMessage
 }
 
-data class ChatInfo( val prefix:Char, val message:String, val messageColor:ChatColor)
-
 public class Plugin: JavaPlugin(), Listener {
-  private val chatModes = object {
-    var player = ".!@"
-  }
+  lateinit var globalChatMode:ChatMode
+  lateinit var localChatMode:ChatMode
+  lateinit var privateChatMode:ChatMode
 
   override fun onEnable() {
     logger.info( "Plugin enabled" )
     server.pluginManager.registerEvents( this, this )
+
+    createChatMode( '!', ChatColor.GRAY,
+      test = fun( _:CommandSender ) = true,
+      receivers = fun( _:CommandSender ) = server.onlinePlayers
+    )
+    createChatMode( '.', ChatColor.DARK_AQUA,
+      test = fun( _:CommandSender ) = true,
+      receivers = fun( sender:CommandSender ):Set<Player> {
+        val playerLoc = (sender as Player).location
+        val playersSet = mutableSetOf<Player>()
+
+        server.onlinePlayers.forEach {
+          if ( it.location.distance( playerLoc ) < 100 ) playersSet.add( it )
+        }
+
+        return playersSet
+      }
+    )
+    createChatMode( '>', ChatColor.GRAY,
+      test = fun( _:CommandSender ) = false,
+      receivers = fun( _:CommandSender ) = mutableSetOf<Player>()
+    )
   }
 
   override fun onTabComplete( sender:CommandSender, command:Command, label:String, args:Array<String> ):List<String>? {
@@ -102,7 +145,7 @@ public class Plugin: JavaPlugin(), Listener {
             val nicknameA = "${ChatColor.GREEN}[Ty > ${ChatColor.WHITE}$reveiverName${ChatColor.GREEN}]"
             val nicknameB = "${ChatColor.GREEN}[${ChatColor.WHITE}$senderName${ChatColor.GREEN} > Ty]"
 
-            createChatMessage( nicknameA, message, sender )
+            sender.sendMessage( createChatMessage( nicknameA, message ) )
 
             if ( receiver is Player ) createChatMessage( nicknameB, message, receiver )
             else logger.info( createChatMessage( nicknameB, message ) )
@@ -149,7 +192,9 @@ public class Plugin: JavaPlugin(), Listener {
     val player = e.player
     val message = if ( player.isOp ) replaceVarsToColor( e.message ) else e.message
 
-    e.format = createChatMessage( player.displayName, message )
+    logger.info( createChatMessage( player.displayName, message, player ) )
+
+    e.setCancelled( true )
   }
 
   @EventHandler
