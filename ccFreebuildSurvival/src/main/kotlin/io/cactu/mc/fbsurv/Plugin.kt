@@ -10,6 +10,7 @@ import org.bukkit.command.CommandSender
 import org.bukkit.command.Command
 import org.bukkit.block.Block
 import org.bukkit.block.BlockFace
+import org.bukkit.block.Furnace
 import org.bukkit.block.data.Directional
 import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
@@ -21,6 +22,8 @@ import org.bukkit.event.entity.EntityExplodeEvent
 import org.bukkit.event.entity.EntityDeathEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.inventory.InventoryType
+import org.bukkit.event.inventory.InventoryClickEvent
+import org.bukkit.event.inventory.FurnaceSmeltEvent
 import org.bukkit.GameMode
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
@@ -195,8 +198,8 @@ class Plugin: JavaPlugin(), Listener {
     else if ( itemInMainHand.type == Material.WOODEN_PICKAXE ) {
       if ( typeStr.contains( "STONE" ) && block.type != Material.COBBLESTONE ) e.setDropItems( false )
     }
-    else if ( itemInMainHand.type == Material.FLINT && block.type == Material.IRON_ORE ) {
-      if ( block.getRelative( BlockFace.UP ).type == Material.LAVA ) {
+    else if ( itemInMainHand.type == Material.FLINT ) {
+      if ( block.type == Material.IRON_ORE && block.getRelative( BlockFace.UP ).type == Material.LAVA ) {
         val flintAndSteel = ItemStack( Material.FLINT_AND_STEEL, 1 )
         val meta = flintAndSteel.itemMeta!! as Damageable
 
@@ -207,6 +210,9 @@ class Plugin: JavaPlugin(), Listener {
         player.inventory.removeItem( ItemStack( Material.FLINT, 1 ) )
         player.inventory.addItem( flintAndSteel )
       }
+    }
+    else if ( block.type == Material.EMERALD_ORE ) {
+      if ( itemInMainHand.type == Material.IRON_PICKAXE ) e.setDropItems( false )
     }
   }
   @EventHandler
