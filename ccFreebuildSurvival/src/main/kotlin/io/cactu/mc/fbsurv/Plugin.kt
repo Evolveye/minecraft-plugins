@@ -20,11 +20,12 @@ import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.entity.EntityExplodeEvent
 import org.bukkit.event.entity.EntityDeathEvent
 import org.bukkit.event.player.PlayerInteractEvent
-// import org.bukkit.event.inventory.InventoryCloseEvent
 import org.bukkit.event.inventory.InventoryType
 import org.bukkit.GameMode
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
+import org.bukkit.inventory.meta.Damageable
+import org.bukkit.inventory.meta.ItemMeta
 import org.bukkit.Location
 import org.bukkit.WorldCreator
 
@@ -183,16 +184,29 @@ class Plugin: JavaPlugin(), Listener {
 
       e.setDropItems( false )
 
-      if ( typeStr.contains( "OAK" ) )           world.dropItem( location, ItemStack( Material.OAK_PLANKS, planksCount ) )
-      else if ( typeStr.contains( "BIRCH" ) )    world.dropItem( location, ItemStack( Material.BIRCH_PLANKS, planksCount ) )
-      else if ( typeStr.contains( "SPRUCE" ) )   world.dropItem( location, ItemStack( Material.SPRUCE_PLANKS, planksCount ) )
-      else if ( typeStr.contains( "JUNGLE" ) )   world.dropItem( location, ItemStack( Material.JUNGLE_PLANKS, planksCount ) )
+      if      ( typeStr.contains( "OAK" ) )      world.dropItem( location, ItemStack( Material.OAK_PLANKS,      planksCount ) )
+      else if ( typeStr.contains( "BIRCH" ) )    world.dropItem( location, ItemStack( Material.BIRCH_PLANKS,    planksCount ) )
+      else if ( typeStr.contains( "SPRUCE" ) )   world.dropItem( location, ItemStack( Material.SPRUCE_PLANKS,   planksCount ) )
+      else if ( typeStr.contains( "JUNGLE" ) )   world.dropItem( location, ItemStack( Material.JUNGLE_PLANKS,   planksCount ) )
       else if ( typeStr.contains( "DARK_OAK" ) ) world.dropItem( location, ItemStack( Material.DARK_OAK_PLANKS, planksCount ) )
-      else if ( typeStr.contains( "ACACIA" ) )   world.dropItem( location, ItemStack( Material.ACACIA_PLANKS, planksCount ) )
+      else if ( typeStr.contains( "ACACIA" ) )   world.dropItem( location, ItemStack( Material.ACACIA_PLANKS,   planksCount ) )
       else e.setDropItems( true )
     }
-    else if ( typeStr.contains( "STONE" ) && itemInMainHand.type == Material.WOODEN_PICKAXE ) {
-      e.setDropItems( false )
+    else if ( itemInMainHand.type == Material.WOODEN_PICKAXE ) {
+      if ( typeStr.contains( "STONE" ) && block.type != Material.COBBLESTONE ) e.setDropItems( false )
+    }
+    else if ( itemInMainHand.type == Material.FLINT && block.type == Material.IRON_ORE ) {
+      if ( block.getRelative( BlockFace.UP ).type == Material.LAVA ) {
+        val flintAndSteel = ItemStack( Material.FLINT_AND_STEEL, 1 )
+        val meta = flintAndSteel.itemMeta!! as Damageable
+
+        meta.damage = 63
+
+        flintAndSteel.itemMeta = meta as ItemMeta
+
+        player.inventory.removeItem( ItemStack( Material.FLINT, 1 ) )
+        player.inventory.addItem( flintAndSteel )
+      }
     }
   }
   @EventHandler
