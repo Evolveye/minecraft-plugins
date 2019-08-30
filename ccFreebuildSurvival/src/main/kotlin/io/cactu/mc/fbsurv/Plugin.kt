@@ -18,15 +18,22 @@ import org.bukkit.event.Listener
 import org.bukkit.event.EventHandler
 import org.bukkit.event.block.Action
 import org.bukkit.event.block.BlockBreakEvent
+import org.bukkit.event.block.BlockCookEvent
 import org.bukkit.event.entity.EntityExplodeEvent
 import org.bukkit.event.entity.EntityDeathEvent
 import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.event.inventory.InventoryAction
 import org.bukkit.event.inventory.InventoryType
 import org.bukkit.event.inventory.InventoryClickEvent
-import org.bukkit.event.inventory.FurnaceSmeltEvent
 import org.bukkit.GameMode
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
+import org.bukkit.inventory.Recipe
+import org.bukkit.inventory.PlayerInventory
+import org.bukkit.inventory.FurnaceInventory
+import org.bukkit.inventory.FurnaceRecipe
+import org.bukkit.inventory.BlastingRecipe
+import org.bukkit.inventory.CookingRecipe
 import org.bukkit.inventory.meta.Damageable
 import org.bukkit.inventory.meta.ItemMeta
 import org.bukkit.Location
@@ -53,6 +60,43 @@ class Plugin: JavaPlugin(), Listener {
   override fun onEnable() {
     server.pluginManager.registerEvents( this, this )
     server.createWorld( WorldCreator( "world_heaven" ) )
+
+    val recipes = mutableSetOf<Recipe>()
+    val recipesIterator = server.recipeIterator()
+
+    while ( recipesIterator.hasNext() ) {
+      val recipe = recipesIterator.next()
+
+      if ( recipe is FurnaceRecipe ) when ( recipe.result.type ) {
+        Material.COOKED_BEEF,
+        Material.COOKED_CHICKEN,
+        Material.COOKED_COD,
+        Material.COOKED_MUTTON,
+        Material.COOKED_PORKCHOP,
+        Material.COOKED_RABBIT,
+        Material.COOKED_SALMON,
+        Material.BAKED_POTATO,
+        Material.DRIED_KELP,
+
+        Material.COAL,
+        Material.IRON_INGOT,
+        Material.GOLD_INGOT,
+        Material.REDSTONE,
+        Material.LAPIS_LAZULI,
+        Material.DIAMOND,
+        Material.EMERALD,
+        Material.QUARTZ -> {
+          // logger.info( "remove ${recipe.result.type} ${recipe is BlastingRecipe}")
+          // recipesIterator.remove()
+        }
+
+        else -> recipes.add( recipe )
+      }
+      else recipes.add( recipe )
+    }
+
+    server.clearRecipes()
+    recipes.forEach { server.addRecipe( it ) }
 
     val actionBlocksSQL = doQuery( "SELECT * FROM action_blocks WHERE plugin='ccFreebuildSurvival'")
 
@@ -255,6 +299,12 @@ class Plugin: JavaPlugin(), Listener {
       if ( !postument.additionalTests( player, block ) ) return
     }
   }
+  // @EventHandler
+  // public fun onSmelt( e:FurnaceBurnEvent ) {
+  //   // val item = e.handlers
+  //   logger.info( "${e.block.type} ${e.}" )
+  //   // if ( holder is Furnace && block != null && "${block.type}".contains( "ORE" ) ) e.setCancelled( true )
+  // }
 
   fun random( min:Int, max:Int ):Int {
     return Math.floor( Math.random() * (max - min + 1) ).toInt() + min
