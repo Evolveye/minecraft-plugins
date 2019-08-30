@@ -25,6 +25,7 @@ import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.inventory.InventoryAction
 import org.bukkit.event.inventory.InventoryType
 import org.bukkit.event.inventory.InventoryClickEvent
+import org.bukkit.event.inventory.FurnaceSmeltEvent
 import org.bukkit.GameMode
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
@@ -217,7 +218,7 @@ class Plugin: JavaPlugin(), Listener {
   public fun onBlockBreak( e:BlockBreakEvent ) {
     val player = e.player
 
-    if ( player.world.name != "world_heaven" ) return
+    // if ( player.world.name != "world_heaven" ) return
     if ( player.gameMode == GameMode.CREATIVE ) return
 
     val block = e.block
@@ -299,12 +300,37 @@ class Plugin: JavaPlugin(), Listener {
       if ( !postument.additionalTests( player, block ) ) return
     }
   }
-  // @EventHandler
-  // public fun onSmelt( e:FurnaceBurnEvent ) {
-  //   // val item = e.handlers
-  //   logger.info( "${e.block.type} ${e.}" )
-  //   // if ( holder is Furnace && block != null && "${block.type}".contains( "ORE" ) ) e.setCancelled( true )
-  // }
+  @EventHandler
+  public fun onSmelt( e:FurnaceSmeltEvent ) {
+    val furnace = e.block
+
+    if ( furnace.type == Material.SMOKER ) {
+      if ( furnace.getRelative( 0, -1, 0 ).type == Material.REDSTONE_BLOCK ) {
+        val blockAboveFurnace = furnace.getRelative( 0, 1, 0 )
+        val item = when ( blockAboveFurnace.type ) {
+          Material.COAL_ORE -> Material.COAL
+          Material.IRON_ORE -> Material.IRON_INGOT
+          Material.GOLD_ORE -> Material.GOLD_INGOT
+          Material.REDSTONE_ORE -> Material.REDSTONE
+          Material.LAPIS_ORE -> Material.LAPIS_LAZULI
+          Material.DIAMOND_ORE -> Material.DIAMOND
+          Material.EMERALD_ORE -> Material.EMERALD
+          Material.NETHER_QUARTZ_ORE -> Material.QUARTZ
+
+          else -> return
+        }
+        val location = furnace.location
+
+        location.y += 1
+        blockAboveFurnace.setType( Material.AIR )
+
+        furnace.world.dropItem( location, ItemStack( item, 1 ) )
+      }
+    }
+
+    logger.info( "${e.block.type}" )
+    // if ( holder is Furnace && block != null && "${block.type}".contains( "ORE" ) ) e.setCancelled( true )
+  }
 
   fun random( min:Int, max:Int ):Int {
     return Math.floor( Math.random() * (max - min + 1) ).toInt() + min
