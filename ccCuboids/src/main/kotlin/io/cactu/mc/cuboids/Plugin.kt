@@ -48,24 +48,28 @@ data class Cuboid(
 ) { val actionBlocks = mutableSetOf<ActionBlock>() }
 
 class Plugin: JavaPlugin(), Listener {
-  val messageYouCannotInfereHere = "Nie możesz ingerować na tym obszarze!"
-  val messageYoucannotPlaceCampfire = "Ogniska można stawiać jedynie na zabezpieczonym terenie, oraz gdy nie posiada się obozowiska"
-  val messageTentTooCloseToAnotherCuboid = "Znajdujesz się zbyt blisko jakiegoś regionu aby zabezpieczyć ten chunk"
-  val messageTentCreated = "Obozowisko &3rozbite pomyślnie"
-  val messageTentRemoved = "Obozowisko &3rozebrane pomyślnie"
-  val regionCreatedSuccessfully = "&3Region utworzony pomyślnie"
-  val regionChunkForSell = "Chunk na sprzedaż"
-  val chunkForBuy = "Chunk do kupienia"
-  val chunkBuyNeededItems = "Wymagane przedmioty"
-  val chunkBuy = "&1&ukup"
-  val chunkBuyIronIngots = "Sztabki żelaza"
-  val chunkBuyEmeralds = "Emeraldy"
-  val chunkSell = "&1&usprzedaj"
-  val noActions = "Brak akcji"
-  val infoAboutCuboid = "Informacje o regionie"
-  val tentToRegionPosibility = "&3Masz możliwość stworzenia regionu"
-  val tentToColonyPosibility = "&3Masz możliwość stworzenia kolonii"
-  val tentToRegionInability = "Aby kupić region potrzebujesz bloku emeraldu; do kolonii 5 bloków"
+  companion object messages {
+    val youCannotInfereHere = "Nie możesz ingerować na tym obszarze!"
+    val youCannotPlaceCampfire = "Ogniska można stawiać jedynie na zabezpieczonym terenie, oraz gdy nie posiada się obozowiska"
+    val youEnteredARegionCalled = "Wkroczyłeś na teren o nazwie: &7"
+    val youLeavedARegionCalled = "Wyszedłeś z terenu pod nazwą: &7"
+    val tentTooCloseToAnotherCuboid = "Znajdujesz się zbyt blisko jakiegoś regionu aby zabezpieczyć ten chunk"
+    val tentCreated = "Obozowisko &3rozbite pomyślnie"
+    val tentRemoved = "Obozowisko &3rozebrane pomyślnie"
+    val regionCreated = "&3Region utworzony pomyślnie"
+    val chunkForSell = "Chunk na sprzedaż"
+    val chunkForBuy = "Chunk do kupienia"
+    val chunkForBuyNeededItems = "Wymagane przedmioty"
+    val chunkForBuyIronIngots = "Sztabki żelaza"
+    val chunkForBuyEmeralds = "Emeraldy"
+    val buy = "&1&ukup"
+    val sell = "&1&usprzedaj"
+    val noActions = "Brak akcji"
+    val infoAboutCuboid = "Informacje o regionie"
+    val tentToRegionPosibility = "&3Masz możliwość stworzenia regionu"
+    val tentToColonyPosibility = "&3Masz możliwość stworzenia kolonii"
+    val tentToRegionInability = "Aby kupić region potrzebujesz bloku emeraldu; do kolonii 5 bloków"
+  }
 
   val distanceTentFromCuboid = 2
   val distanceCuboidFromCuboid = 4
@@ -185,7 +189,7 @@ class Plugin: JavaPlugin(), Listener {
 
             createCuboidChunk( senderRegion, chunk )
 
-            createChatInfo( regionCreatedSuccessfully, sender )
+            createChatInfo( messages.regionCreated, sender )
           }
           else createChatError( "Nie stać Cię na wykupienie tego chunka!", sender )
         }
@@ -252,12 +256,12 @@ class Plugin: JavaPlugin(), Listener {
     if ( cuboidChunkFrom == null ) {
       val cuboidName = cuboids.get( cuboidChunkTo!!.cuboidId )!!.name.replace( '_', ' ' )
 
-      createChatInfo( "Wszedłeś na region: &7$cuboidName", e.player )
+      createChatInfo( "${messages.youEnteredARegionCalled}$cuboidName", e.player )
     }
     else {
       val cuboidName = cuboids.get( cuboidChunkFrom.cuboidId )!!.name.replace( '_', ' ' )
 
-      createChatInfo( "Wyszedleś z regionu: &7$cuboidName", e.player )
+      createChatInfo( "${messages.youLeavedARegionCalled}}$cuboidName", e.player )
     }
   }
   @EventHandler
@@ -288,32 +292,36 @@ class Plugin: JavaPlugin(), Listener {
     if ( e.action == Action.LEFT_CLICK_BLOCK && player.inventory.itemInMainHand.type == Material.LANTERN ) {
       if ( cuboid != null && cuboid.type == CuboidType.TENT ) {
         if ( player.inventory.contains( Material.EMERALD_BLOCK ) && getCuboid( player, CuboidType.REGION ) == null )
-          createModuledChatMessage( "$tentToRegionPosibility&D7: " )
-            .addNextText( chunkBuy )
+          createModuledChatMessage( "${messages.tentToRegionPosibility}&D7: " )
+            .addNextText( messages.buy )
             .clickCommand( "/cuboids buy" )
             .sendTo( player )
         else if ( player.inventory.contains( Material.EMERALD_BLOCK, 5 ) && getCuboid( player, CuboidType.REGION ) == null )
-          createModuledChatMessage( "$tentToColonyPosibility&D7: " )
-            .addNextText( chunkBuy )
+          createModuledChatMessage( "${messages.tentToColonyPosibility}&D7: " )
+            .addNextText( messages.buy )
             .clickCommand( "/cuboids buy" )
             .sendTo( player )
-        else createModuledChatMessage( tentToRegionInability ).sendTo( player )
+        else createModuledChatMessage( messages.tentToRegionInability ).sendTo( player )
       }
       else {
-        var info = createModuledChatMessage( "&3$infoAboutCuboid:\n\n" )
+        var info = createModuledChatMessage( "&3${messages.infoAboutCuboid}:\n\n" )
 
         if ( cuboid == null ) {
-          if ( canPlayerBuyChunk( player, chunk ) ) with ( getNextCuboidChnkCost( player )!! ) { info
-            .addNextText( " &3-&7 $chunkForBuy: " )
-            .addNextText( chunkBuy )
-            .clickCommand( "/cuboids buy" )
-            .hoverText( "&7$chunkBuyIronIngots: &3$ironIngots\n&7$chunkBuyEmeralds: &3$emeralds" )
+          if ( canPlayerBuyChunk( player, chunk ) ) {
+            val cost = getNextCuboidChnkCost( player )!!
+
+            with ( messages ) { info
+              .addNextText( " &3-&7 $chunkForBuy: " )
+              .addNextText( buy )
+              .clickCommand( "/cuboids buy" )
+              .hoverText( "&7$chunkForBuyIronIngots: &3${cost.ironIngots}\n&7$chunkForBuyEmeralds: &3${cost.emeralds}" )
+            }
           }
-          else info.addNextText( "   &D7&i$noActions" )
+          else info.addNextText( "   &D7&i${messages.noActions}" )
         }
         else if ( canChunkBeSaled( chunk ) ) info
-          .addNextText( " &3-&7 $regionChunkForSell: " )
-          .addNextText( chunkSell )
+          .addNextText( " &3-&7 ${messages.chunkForSell}: " )
+          .addNextText( messages.sell )
           .clickCommand( "/cuboids sell" )
 
         info.sendTo( player )
@@ -327,7 +335,7 @@ class Plugin: JavaPlugin(), Listener {
         if ( !typeStr.contains( "STONE" ) && (typeStr.contains( "BUTTON" ) || typeStr.contains( "PLATE" ) ) ) return
         if ( typeStr.contains( "DOOR" ) && block.type != Material.IRON_DOOR ) return
 
-        createChatError( messageYouCannotInfereHere, player )
+        createChatError( messages.youCannotInfereHere, player )
 
         return e.setCancelled( true )
       }
@@ -340,7 +348,7 @@ class Plugin: JavaPlugin(), Listener {
 
     if ( damager !is Player ) return
     if ( !canPlayerInfere( e.entity.location.chunk, damager ) ) {
-      createChatError( messageYouCannotInfereHere, damager )
+      createChatError( messages.youCannotInfereHere, damager )
       e.setCancelled( true )
     }
   }
@@ -351,11 +359,11 @@ class Plugin: JavaPlugin(), Listener {
 
     if ( block.type == Material.CAMPFIRE ) {
       if ( getCuboid( player, CuboidType.TENT ) != null ) {
-        createChatInfo( messageYoucannotPlaceCampfire, player )
+        createChatInfo( messages.youCannotPlaceCampfire, player )
         e.setCancelled( true )
       }
       else if ( !isGoodPlaceForCuboid( block.chunk, CuboidType.TENT ) ) {
-        createChatInfo( messageTentTooCloseToAnotherCuboid, player )
+        createChatInfo( messages.tentTooCloseToAnotherCuboid, player )
         e.setCancelled( true )
       }
       else {
@@ -374,7 +382,7 @@ class Plugin: JavaPlugin(), Listener {
         """ )
         cuboid.actionBlocks.add( tentCore )
         actionBlocks.add( tentCore )
-        createChatInfo( messageTentCreated, player )
+        createChatInfo( messages.tentCreated, player )
       }
     }
   }
@@ -392,7 +400,7 @@ class Plugin: JavaPlugin(), Listener {
       if ( !actionBlocks.removeIf { it.x == x && it.y == y && it.z == z && it.world == world } ) return
 
       removeCuboid( "Obozowisko gracza ${player.displayName}" )
-      createChatInfo( messageTentRemoved, player )
+      createChatInfo( messages.tentRemoved, player )
     }
   }
 
