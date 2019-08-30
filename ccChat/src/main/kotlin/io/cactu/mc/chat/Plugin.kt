@@ -129,7 +129,7 @@ fun createChatMessage( nickname:String, message:String, sender:CommandSender?=nu
 
   return convertedMessage
 }
-fun createModuledChatMessage( message:String, sign:Char='?' ):ModuledChatMessage {
+fun createModuledChatMessage( message:String, sign:Char='i' ):ModuledChatMessage {
   return ModuledChatMessage( "&D7[&1&b$sign&D7] " ).addNextText( message )
 }
 
