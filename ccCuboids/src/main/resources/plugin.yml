@@ -9,4 +9,3 @@ commands:
   cuboids:
     description: Obsłóż cuboidy
     usage: /<command> <...>
-    permission: minecraft.command.op
