@@ -126,7 +126,7 @@ class Plugin: JavaPlugin(), Listener {
     }
   }
   override fun onTabComplete( sender:CommandSender, command:Command, label:String, args:Array<String> ):List<String>? {
-    if ( args.size == 1 ) return listOf( "create", "remove" )
+    if ( args.size == 1 ) return if ( sender.isOp() ) listOf( "create", "remove", "buy", "sell" ) else listOf( "buy", "sell" )
     if ( args[ 0 ] == "create" ) {
       if ( args.size == 2 ) return listOf( "<name>" )
       if ( args.size == 3 ) return null
