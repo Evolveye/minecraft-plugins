@@ -256,6 +256,9 @@ class Plugin: JavaPlugin(), Listener {
         player.inventory.addItem( flintAndSteel )
       }
     }
+    else if ( block.type == Material.IRON_ORE ) {
+      if ( itemInMainHand.type == Material.STONE_PICKAXE ) e.setDropItems( false )
+    }
     else if ( block.type == Material.EMERALD_ORE ) {
       if ( itemInMainHand.type == Material.IRON_PICKAXE ) e.setDropItems( false )
     }
