@@ -87,7 +87,7 @@ class Plugin: JavaPlugin(), Listener {
         Material.DIAMOND,
         Material.EMERALD,
         Material.QUARTZ -> {
-          // logger.info( "remove ${recipe.result.type} ${recipe is BlastingRecipe}")
+          // info( "remove ${recipe.result.type} ${recipe is BlastingRecipe}")
           // recipesIterator.remove()
         }
 
@@ -330,9 +330,6 @@ class Plugin: JavaPlugin(), Listener {
         furnace.world.dropItem( location, ItemStack( item, 1 ) )
       }
     }
-
-    logger.info( "${e.block.type}" )
-    // if ( holder is Furnace && block != null && "${block.type}".contains( "ORE" ) ) e.setCancelled( true )
   }
 
   fun random( min:Int, max:Int ):Int {

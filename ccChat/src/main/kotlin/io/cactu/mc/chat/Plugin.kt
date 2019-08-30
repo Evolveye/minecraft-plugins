@@ -1,5 +1,10 @@
 package io.cactu.mc.chat
 
+import net.md_5.bungee.api.chat.TextComponent
+import net.md_5.bungee.api.chat.HoverEvent
+import net.md_5.bungee.api.chat.ClickEvent
+import net.md_5.bungee.api.chat.ComponentBuilder
+
 import org.bukkit.Bukkit
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.entity.Player
@@ -24,6 +29,43 @@ data class ChatMode(
   val test:ChatModeTester,
   val receivers:ChatModeReceivers
 )
+
+class ModuledChatMessage {
+  val components = mutableSetOf<TextComponent>()
+
+  constructor( text:String ) {
+    addNextText( text )
+  }
+
+  public fun clickCommand( command:String ):ModuledChatMessage {
+    components.last().clickEvent = ClickEvent( ClickEvent.Action.RUN_COMMAND, command )
+
+    return this
+  }
+  public fun hoverText( text:String ):ModuledChatMessage {
+    components.last().hoverEvent = HoverEvent(
+      HoverEvent.Action.SHOW_TEXT,
+      ComponentBuilder( replaceVarsToColor( text ) ).create()
+    )
+
+    return this
+  }
+  public fun addNextText( text:String ):ModuledChatMessage {
+    val component = TextComponent()
+
+    component.text = replaceVarsToColor( text )
+
+    components.add( component )
+
+    return this
+  }
+
+  public fun sendTo( player:Player ) {
+    components.forEachIndexed { i, it -> if ( i != 0 ) components.first().addExtra( it ) }
+
+    player.spigot().sendMessage( components.first() )
+  }
+}
 
 fun replaceVarsToColor( message:String ):String = message
   .replace( "&0", "${ChatColor.BLACK}" )
@@ -86,6 +128,9 @@ fun createChatMessage( nickname:String, message:String, sender:CommandSender?=nu
   if ( sender != null ) messageData.chatMode.receivers( sender ).forEach { it.sendMessage( convertedMessage ) }
 
   return convertedMessage
+}
+fun createModuledChatMessage( message:String, sign:Char='?' ):ModuledChatMessage {
+  return ModuledChatMessage( "&D7[&1&b$sign&D7] " ).addNextText( message )
 }
 
 public class Plugin: JavaPlugin(), Listener {
