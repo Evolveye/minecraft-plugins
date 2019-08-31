@@ -375,27 +375,29 @@ class Plugin: JavaPlugin(), Listener {
         createChatInfo( messages.youCannotPlaceCampfire, player )
         e.setCancelled( true )
       }
-      else if ( !isGoodPlaceForCuboid( block.chunk, CuboidType.TENT ) ) {
-        createChatInfo( messages.tentTooCloseToAnotherCuboid, player )
-        e.setCancelled( true )
-      }
-      else {
-        val x = block.x
-        val y = block.y
-        val z = block.z
-        val world = block.world.name
-        val cuboid = createCuboid(
-          "Obozowisko gracza ${player.displayName}", CuboidType.TENT, player, block.chunk
-          ) ?: return
-        val tentCore = ActionBlock( x, y, z, block.world.name, cuboid.id, "tent_core" )
+      else if ( getCuboid( block.chunk ) == null ) {
+        if ( !isGoodPlaceForCuboid( block.chunk, CuboidType.TENT ) ) {
+          createChatInfo( messages.tentTooCloseToAnotherCuboid, player )
+          e.setCancelled( true )
+        }
+        else {
+          val x = block.x
+          val y = block.y
+          val z = block.z
+          val world = block.world.name
+          val cuboid = createCuboid(
+            "Obozowisko gracza ${player.displayName}", CuboidType.TENT, player, block.chunk
+            ) ?: return
+          val tentCore = ActionBlock( x, y, z, block.world.name, cuboid.id, "tent_core" )
 
-        doUpdatingQuery( """
-          INSERT INTO action_blocks (plugin, type, world, data, x, y, z)
-          VALUES ('ccCuboids', 'tent_core', '$world', '${cuboid.id}', $x, $y, $z)
-        """ )
-        cuboid.actionBlocks.add( tentCore )
-        actionBlocks.add( tentCore )
-        createChatInfo( messages.tentCreated, player )
+          doUpdatingQuery( """
+            INSERT INTO action_blocks (plugin, type, world, data, x, y, z)
+            VALUES ('ccCuboids', 'tent_core', '$world', '${cuboid.id}', $x, $y, $z)
+          """ )
+          cuboid.actionBlocks.add( tentCore )
+          actionBlocks.add( tentCore )
+          createChatInfo( messages.tentCreated, player )
+        }
       }
     }
   }
