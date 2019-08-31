@@ -240,8 +240,26 @@ class Plugin: JavaPlugin(), Listener {
       else if ( typeStr.contains( "ACACIA" ) )   world.dropItem( location, ItemStack( Material.ACACIA_PLANKS,   planksCount ) )
       else e.setDropItems( true )
     }
+    else if ( itemInMainHand.type == Material.IRON_PICKAXE ) {
+      when ( block.type ) {
+        Material.REDSTONE_ORE,
+        Material.LAPIS_ORE,
+        Material.DIAMOND_ORE,
+        Material.EMERALD_ORE -> e.setDropItems( false )
+
+        else -> {}
+      }
+    }
+    else if ( itemInMainHand.type == Material.STONE_PICKAXE ) {
+      if ( block.type == Material.IRON_ORE ) e.setDropItems( false )
+    }
     else if ( itemInMainHand.type == Material.WOODEN_PICKAXE ) {
       if ( typeStr.contains( "STONE" ) && block.type != Material.COBBLESTONE ) e.setDropItems( false )
+    }
+    else if ( itemInMainHand.type == Material.COAL || itemInMainHand.type == Material.CHARCOAL ) {
+      if ( block.type == Material.IRON_ORE && block.getRelative( BlockFace.DOWN ).type == Material.CAMPFIRE ) {
+        block.world.dropItem( location, ItemStack( Material.IRON_INGOT, 1 ) )
+      }
     }
     else if ( itemInMainHand.type == Material.FLINT ) {
       if ( block.type == Material.IRON_ORE && block.getRelative( BlockFace.UP ).type == Material.LAVA ) {
@@ -255,12 +273,6 @@ class Plugin: JavaPlugin(), Listener {
         player.inventory.removeItem( ItemStack( Material.FLINT, 1 ) )
         player.inventory.addItem( flintAndSteel )
       }
-    }
-    else if ( block.type == Material.IRON_ORE ) {
-      if ( itemInMainHand.type == Material.STONE_PICKAXE ) e.setDropItems( false )
-    }
-    else if ( block.type == Material.EMERALD_ORE ) {
-      if ( itemInMainHand.type == Material.IRON_PICKAXE ) e.setDropItems( false )
     }
   }
   @EventHandler
@@ -301,34 +313,6 @@ class Plugin: JavaPlugin(), Listener {
         }
 
       if ( !postument.additionalTests( player, block ) ) return
-    }
-  }
-  @EventHandler
-  public fun onSmelt( e:FurnaceSmeltEvent ) {
-    val furnace = e.block
-
-    if ( furnace.type == Material.SMOKER ) {
-      if ( furnace.getRelative( 0, -1, 0 ).type == Material.REDSTONE_BLOCK ) {
-        val blockAboveFurnace = furnace.getRelative( 0, 1, 0 )
-        val item = when ( blockAboveFurnace.type ) {
-          Material.COAL_ORE -> Material.COAL
-          Material.IRON_ORE -> Material.IRON_INGOT
-          Material.GOLD_ORE -> Material.GOLD_INGOT
-          Material.REDSTONE_ORE -> Material.REDSTONE
-          Material.LAPIS_ORE -> Material.LAPIS_LAZULI
-          Material.DIAMOND_ORE -> Material.DIAMOND
-          Material.EMERALD_ORE -> Material.EMERALD
-          Material.NETHER_QUARTZ_ORE -> Material.QUARTZ
-
-          else -> return
-        }
-        val location = furnace.location
-
-        location.y += 1
-        blockAboveFurnace.setType( Material.AIR )
-
-        furnace.world.dropItem( location, ItemStack( item, 1 ) )
-      }
     }
   }
 
