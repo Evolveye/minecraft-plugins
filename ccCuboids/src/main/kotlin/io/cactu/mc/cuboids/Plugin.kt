@@ -207,19 +207,34 @@ class Plugin: JavaPlugin(), Listener {
         if ( cuboidMember.manager ) {
           if ( canChunkBeSaled( chunk ) ) {
             val cost = getNextCuboidChnkCost( sender )!!
+            val cuboidChunks = cuboidsChunks.filter { it.cuboidId == cuboidChunk.id }
 
-            if ( cuboidsChunks.filter { it.cuboidId == cuboidChunk.id }.size == 1 ) {
+            if ( cuboidChunks.size == 1 ) {
               removeCuboid( cuboidChunk )
               createChatInfo( "&3Region usunięty pomyślnie", sender )
             }
             else {
-              sender.inventory.addItem(
-                ItemStack( Material.EMERALD, (cost.emeralds * 0.8).toInt() ),
-                ItemStack( Material.IRON_INGOT, (cost.ironIngots * 0.8).toInt() )
-              )
+              val neighbours = mutableSetOf<CuboidChunk>()
+              val baseX = chunk.x
+              val baseZ = chunk.z
 
-              removeCuboidChunk( chunk )
-              createChatInfo( "&3Chunk wypisany z regionu pomyślnie", sender )
+              for ( x in -1..1 ) for ( z in -1..1 ) if ( (x == 0) xor (z == 0) ) {
+                val neighbour = cuboidChunks.find { it.x == baseX + x && it.z == baseZ + z } ?: continue
+
+                neighbours.add( neighbour )
+              }
+
+              if ( neighbours.size > 1 && !connectionBetweenCuboidChunks( neighbours ) )
+                createChatError( "Nie możesz usunać tego chunka, poniewaz podzieli on region na części!", sender )
+              else {
+                sender.inventory.addItem(
+                  ItemStack( Material.EMERALD, (cost.emeralds * 0.8).toInt() ),
+                  ItemStack( Material.IRON_INGOT, (cost.ironIngots * 0.8).toInt() )
+                )
+
+                removeCuboidChunk( chunk )
+                createChatInfo( "&3Chunk wypisany z regionu pomyślnie", sender )
+              }
             }
           }
           else createChatError( "Ten chunk nie jest na sprzedaż!", sender )
@@ -261,7 +276,7 @@ class Plugin: JavaPlugin(), Listener {
     else {
       val cuboidName = cuboids.get( cuboidChunkFrom.cuboidId )!!.name.replace( '_', ' ' )
 
-      createChatInfo( "${messages.youLeavedARegionCalled}}$cuboidName", e.player )
+      createChatInfo( "${messages.youLeavedARegionCalled}$cuboidName", e.player )
     }
   }
   @EventHandler
@@ -324,7 +339,7 @@ class Plugin: JavaPlugin(), Listener {
           .addNextText( messages.sell )
           .clickCommand( "/cuboids sell" )
 
-        info.sendTo( player )
+        info.addNextText( "\n" ).sendTo( player )
       }
 
       return e.setCancelled( true )
@@ -682,6 +697,41 @@ class Plugin: JavaPlugin(), Listener {
     cuboid.type = type
 
     doUpdatingQuery( "UPDATE cuboids SET type='$type', name='${cuboid.name}' WHERE id=${cuboid.id}" )
+  }
+
+  fun connectionBetweenCuboidChunks( chunksToCheck:MutableSet<CuboidChunk> ):Boolean { // A*
+    if ( chunksToCheck.isEmpty() ) return true
+
+    val startChunk = chunksToCheck.first()
+    val closedSet = mutableSetOf<CuboidChunk>()
+    val openSet = chunksToCheck
+      .filter { it.cuboidId != startChunk.cuboidId }
+      .toMutableSet()
+
+    fun checkNeighbours( chunk:CuboidChunk? ):Int {
+      if ( chunk == null || closedSet.find { it == chunk} != null ) return 0
+
+      chunksToCheck.remove( chunk )
+      openSet.remove( chunk )
+      closedSet.add( chunk )
+
+      if ( openSet.isEmpty() ) return -1
+      if ( chunksToCheck.isEmpty() ) return 1
+
+      val up =    checkNeighbours( openSet.find { it.x == chunk.x && it.z == chunk.z + 1 } )
+      val down =  checkNeighbours( openSet.find { it.x == chunk.x && it.z == chunk.z - 1 } )
+      val left =  checkNeighbours( openSet.find { it.x == chunk.x - 1 && it.z == chunk.z } )
+      val right = checkNeighbours( openSet.find { it.x == chunk.x + 1 && it.z == chunk.z } )
+
+      if ( up != 0 )    return up
+      if ( down != 0 )  return down
+      if ( left != 0 )  return left
+      if ( right != 0 ) return right
+
+      return 0
+    }
+
+    return if ( checkNeighbours( startChunk ) == 1 ) true else false
   }
 }
 
