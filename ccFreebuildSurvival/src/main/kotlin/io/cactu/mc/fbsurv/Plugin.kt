@@ -236,16 +236,25 @@ class Plugin: JavaPlugin(), Listener {
         Material.REDSTONE_ORE,
         Material.LAPIS_ORE,
         Material.DIAMOND_ORE,
-        Material.EMERALD_ORE -> e.setDropItems( false )
+        Material.EMERALD_ORE -> {
+          createChatInfo( "Ups. &1Ten surowiec mozesz wydobyć z pomocą TNT lub lepszym kilofem", player)
+          e.setDropItems( false )
+        }
 
         else -> {}
       }
     }
     else if ( itemInMainHand.type == Material.STONE_PICKAXE ) {
-      if ( block.type == Material.IRON_ORE ) e.setDropItems( false )
+      if ( block.type == Material.IRON_ORE ) {
+        createChatInfo( "Ups. &1Ten surowiec mozesz wydobyć z pomocą TNT lub lepszym kilofem", player)
+        e.setDropItems( false )
+      }
     }
     else if ( itemInMainHand.type == Material.WOODEN_PICKAXE ) {
-      if ( typeStr.contains( "STONE" ) && block.type != Material.COBBLESTONE ) e.setDropItems( false )
+      if ( typeStr.contains( "STONE" ) && block.type != Material.COBBLESTONE ) {
+        createChatInfo( "Kopanie kamienia drewnem nie nalezy do madrych pomysłów", player)
+        e.setDropItems( false )
+      }
     }
     else if ( itemInMainHand.type == Material.COAL || itemInMainHand.type == Material.CHARCOAL ) {
       if ( block.type == Material.IRON_ORE && block.getRelative( BlockFace.DOWN ).type == Material.CAMPFIRE ) {
