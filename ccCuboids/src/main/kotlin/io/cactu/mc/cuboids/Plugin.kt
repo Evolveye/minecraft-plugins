@@ -44,7 +44,7 @@ data class Cuboid(
   var type:CuboidType,
   val members:MutableMap<String,CuboidMember>,
   var parentId:Int?=null
-) { val actionBlocks = mutableSetOf<ActionBlock>() }
+)
 
 class Plugin: JavaPlugin(), Listener {
   companion object messages {
@@ -56,6 +56,9 @@ class Plugin: JavaPlugin(), Listener {
     val tentCreated = "Obozowisko &3rozbite pomyślnie"
     val tentRemoved = "Obozowisko &3rozebrane pomyślnie"
     val regionCreated = "&3Region utworzony pomyślnie"
+    val regionExpanded = "&3Region powiększony pomyślnie"
+    val colonyCreated = "&Kolonia utworzona pomyślnie"
+    val colonyExpanded = "&3Kolonia powiększona pomyślnie"
     val chunkForSell = "Chunk na sprzedaż"
     val chunkForBuy = "Chunk do kupienia"
     val chunkForBuyNeededItems = "Wymagane przedmioty"
@@ -111,7 +114,6 @@ class Plugin: JavaPlugin(), Listener {
 
     while ( actionBlocksSQL.next() ) {
       val cuboidId = actionBlocksSQL.getString( "data" ).toInt()
-      val cuboid = getCuboid( cuboidId )!!
       val actionBlock = ActionBlock(
         actionBlocksSQL.getInt( "x" ),
         actionBlocksSQL.getInt( "y" ),
@@ -122,7 +124,6 @@ class Plugin: JavaPlugin(), Listener {
       )
 
       actionBlocks.add( actionBlock )
-      cuboid.actionBlocks.add( actionBlock )
     }
   }
   override fun onTabComplete( sender:CommandSender, command:Command, label:String, args:Array<String> ):List<String>? {
@@ -160,6 +161,7 @@ class Plugin: JavaPlugin(), Listener {
       val argX:Int? = if ( args.size >= 3 ) args[ 1 ].toIntOrNull() else null
       val argZ:Int? = if ( args.size >= 3 ) args[ 2 ].toIntOrNull() else null
       val chunk = if ( args.size >= 3 && argX != null && argZ != null ) sender.world.getChunkAt( argX, argZ ) else sender.location.chunk
+      val cuboidToExpand = cuboidWhichBeExpandedByChunk( chunk )
       val senderRegion = getCuboid( sender, CuboidType.REGION )
       val cuboidChunk = getCuboid( chunk )
       val inventory = sender.inventory
@@ -171,34 +173,38 @@ class Plugin: JavaPlugin(), Listener {
 
             updateCuboid( cuboidChunk, CuboidType.REGION )
 
-            createChatInfo( "&3Region utworzony pomyślnie", sender )
+            createChatInfo( messages.regionCreated, sender )
           }
           else if ( inventory.contains( Material.EMERALD_BLOCK, 5 ) && senderRegion != null ) {
             inventory.removeItem( ItemStack( Material.EMERALD_BLOCK, 5 ) )
 
             updateCuboid( cuboidChunk, CuboidType.COLONY, senderRegion.id )
 
-            createChatInfo( "&3Kolonia utworzona pomyślnie", sender )
+            createChatInfo( messages.colonyCreated, sender )
           }
           else createChatError( "Nie stać Cię na kupno regionu!", sender )
         }
         else createChatError( "Nie możesz wykupić tego terenu!", sender )
       }
-      else if ( senderRegion != null ) {
-        if ( canChunkBeBought( senderRegion.id, chunk ) ) {
+      else if ( senderRegion != null && cuboidToExpand != null ) {
+        val cuboidMember = getCuboidMember( cuboidToExpand, sender.uniqueId.toString(), true )
+
+        if ( cuboidMember != null && cuboidMember.manager ) {
           val cost = getNextCuboidChnkCost( sender )!!
           val emeralds = inventory.contains( Material.EMERALD, cost.emeralds )
           val ironIngots = inventory.contains( Material.IRON_INGOT, cost.ironIngots )
 
           if ( emeralds && ironIngots ) {
+            val message = if ( cuboidToExpand.type == CuboidType.REGION ) messages.regionExpanded else messages.colonyExpanded
+
             inventory.removeItem(
               ItemStack( Material.EMERALD, cost.emeralds ),
               ItemStack( Material.IRON_INGOT, cost.ironIngots )
             )
 
-            createCuboidChunk( senderRegion, chunk )
+            createCuboidChunk( cuboidToExpand, chunk )
 
-            createChatInfo( messages.regionCreated, sender )
+            createChatInfo( message, sender )
           }
           else createChatError( "Nie stać Cię na wykupienie tego chunka!", sender )
         }
@@ -414,7 +420,6 @@ class Plugin: JavaPlugin(), Listener {
             VALUES ('ccCuboids', 'tent_core', '$world', '${cuboid.id}', $x, $y, $z)
           """ )
 
-          cuboid.actionBlocks.add( tentCore )
           actionBlocks.add( tentCore )
           createChatInfo( messages.tentCreated, player )
         }
@@ -458,25 +463,11 @@ class Plugin: JavaPlugin(), Listener {
   fun isChunkCuboid( chunk:Chunk ):Boolean {
     return if ( getCuboidChunk( chunk.x, chunk.z, chunk.world.name ) == null ) false else true
   }
+
   fun canPlayerBuyChunk( player:Player, chunk:Chunk ):Boolean {
-    val cuboidId = getCuboid( player )?.id ?: return false
+    val cuboidWhichCanBeExpanded = cuboidWhichBeExpandedByChunk( chunk ) ?: return false
 
-    return canChunkBeBought( cuboidId, chunk )
-  }
-  fun canChunkBeBought( cuboidId:Int, chunk:Chunk ):Boolean {
-    val world = chunk.world.name
-    val baseX = chunk.x
-    val baseZ = chunk.z
-    var chunkHaveCuboidNeighbour = false
-
-    for ( x in -1..1 ) for ( z in -1..1 ) if ( x != 0 || z != 0 ) {
-      val neighbour = getCuboidChunk( baseX + x, baseZ + z, world ) ?: continue
-
-      if ( neighbour.cuboidId != cuboidId ) return false
-      else if ( (Math.abs( x ) == 1) xor (Math.abs( z ) == 1) ) chunkHaveCuboidNeighbour = true
-    }
-
-    return chunkHaveCuboidNeighbour
+    return getCuboidMember( cuboidWhichCanBeExpanded, player.uniqueId.toString() )?.manager ?: false
   }
   fun canChunkBeSaled( chunk:Chunk ):Boolean {
     val world = chunk.world.name
@@ -568,19 +559,40 @@ class Plugin: JavaPlugin(), Listener {
   fun getCuboidChunk( x:Int, z:Int, worldName:String ):CuboidChunk? {
     return cuboidsChunks.find { it.x == x && it.z == z && it.world == worldName }
   }
-  fun getCuboidMember( chunk:Chunk, playerUUID:String ):CuboidMember? {
+  fun getCuboidMember( chunk:Chunk, playerUUID:String, deepTest:Boolean=false ):CuboidMember? {
     val cuboidId = getCuboidChunk( chunk.x, chunk.z, chunk.world.name )?.cuboidId ?: return null
 
-    return getCuboidMember( getCuboid( cuboidId )!!, playerUUID )
+    return getCuboidMember( getCuboid( cuboidId )!!, playerUUID, deepTest )
   }
-  fun getCuboidMember( cuboidId:Int, playerUUID:String ):CuboidMember? {
-    return getCuboidMember( getCuboid( cuboidId )!!, playerUUID )
+  fun getCuboidMember( cuboidId:Int, playerUUID:String, deepTest:Boolean=false ):CuboidMember? {
+    return getCuboidMember( getCuboid( cuboidId )!!, playerUUID, deepTest )
   }
-  fun getCuboidMember( cuboid:Cuboid, playerUUID:String ):CuboidMember? {
-    for ( member in cuboid.members.values )
-      if ( member.UUID == playerUUID ) return member
+  fun getCuboidMember( cuboid:Cuboid, playerUUID:String, deepTest:Boolean=false ):CuboidMember? {
+    for ( member in cuboid.members.values ) if ( member.UUID == playerUUID ) return member
+
+    if ( deepTest && cuboid.parentId != null ) return getCuboidMember(
+      getCuboid( cuboid.parentId!! )!!,
+      playerUUID,
+      deepTest
+    )
 
     return null
+  }
+  fun cuboidWhichBeExpandedByChunk( chunk:Chunk ):Cuboid? {
+    val world = chunk.world.name
+    val baseX = chunk.x
+    val baseZ = chunk.z
+    var chunkNeighbour:Cuboid? = null
+
+    for ( x in -1..1 ) for ( z in -1..1 ) if ( x != 0 || z != 0 ) {
+      val neighbour = getCuboidChunk( baseX + x, baseZ + z, world ) ?: continue
+      val cuboidOnChunk = getCuboid( neighbour.cuboidId )!!
+
+      if ( chunkNeighbour != null && neighbour.cuboidId != chunkNeighbour.id ) return null
+      if ( (x == 0) xor (z == 0) ) chunkNeighbour = cuboidOnChunk
+    }
+
+    return chunkNeighbour
   }
   fun getNextCuboidChnkCost( player:Player ):CuboidChunkCost? {
     val cuboid = getCuboid( player ) ?: return null
@@ -610,13 +622,16 @@ class Plugin: JavaPlugin(), Listener {
       ) )
     }
 
-    return Cuboid(
+    val cuboid = Cuboid(
       id,
       cuboidFromQuery.getString( "ownerUUID" ),
       cuboidFromQuery.getString( "name" ),
       CuboidType.valueOf( cuboidFromQuery.getString( "type" ) ),
-      members
+      members,
+      cuboidFromQuery.getInt( "parentCuboidId" )
     )
+
+    return cuboid
   }
   fun createCuboid( cuboidName:String, type:CuboidType, player:Player, chunk:Chunk ):Cuboid? {
     val name = cuboidName.replace( ' ', '_' )
@@ -693,7 +708,7 @@ class Plugin: JavaPlugin(), Listener {
 
     val cuboid = cuboids.remove( id ) ?: return true
 
-    for ( (x, y, z, world) in cuboid.actionBlocks )
+    for ( (x, y, z, world) in actionBlocks.filter { it.cuboidId == cuboid.id } )
       doUpdatingQuery( "DELETE FROM action_blocks WHERE x=$x and y=$y and z=$z and world='$world'" )
 
     return true
@@ -717,11 +732,10 @@ class Plugin: JavaPlugin(), Listener {
     if ( cuboid.type == CuboidType.TENT ) {
       val playerName = server.getPlayer( UUID.fromString( cuboid.ownerUUID ) )?.displayName ?: return
 
-      for ( (x, y, z, world) in cuboid.actionBlocks )
+      for ( (x, y, z, world) in actionBlocks.filter { it.cuboidId == cuboid.id } )
         doUpdatingQuery( "DELETE FROM action_blocks WHERE x=$x and y=$y and z=$z and world='$world'" )
 
       actionBlocks.removeAll { it.type == "tent_core" && it.cuboidId == cuboid.id }
-      cuboid.actionBlocks.removeAll { it.type == "tent_core" }
 
       when ( type ) {
         CuboidType.REGION -> cuboid.name = "Region_gracza_$playerName"
