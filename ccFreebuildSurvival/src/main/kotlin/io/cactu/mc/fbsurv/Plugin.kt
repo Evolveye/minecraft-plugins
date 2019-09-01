@@ -252,7 +252,7 @@ class Plugin: JavaPlugin(), Listener {
     }
     else if ( itemInMainHand.type == Material.WOODEN_PICKAXE ) {
       if ( typeStr.contains( "STONE" ) && block.type != Material.COBBLESTONE ) {
-        createChatInfo( "Kopanie kamienia drewnem nie nalezy do madrych pomysłów", player)
+        createChatInfo( "Kopanie kamienia drewnem nie nalezy do mądrych pomysłów", player)
         e.setDropItems( false )
       }
     }
