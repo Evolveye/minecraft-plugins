@@ -185,11 +185,13 @@ public class Plugin: JavaPlugin(), Listener {
             val message = ">${ChatColor.GRAY}${args.slice( 1..(args.size - 1) ).joinToString( " " )}"
             val nicknameA = "${ChatColor.GREEN}[Ty > ${ChatColor.WHITE}$reveiverName${ChatColor.GREEN}]"
             val nicknameB = "${ChatColor.GREEN}[${ChatColor.WHITE}$senderName${ChatColor.GREEN} > Ty]"
+            val messageA = createChatMessage( nicknameA, message )
+            val messageB = createChatMessage( nicknameB, message )
 
-            sender.sendMessage( createChatMessage( nicknameA, message ) )
+            sender.sendMessage( messageA )
 
-            if ( receiver is Player ) createChatMessage( nicknameB, message, receiver )
-            else logger.info( createChatMessage( nicknameB, message ) )
+            if ( receiver is Player ) receiver.sendMessage( messageB )
+            else logger.info( messageB )
 
             return true
           }
