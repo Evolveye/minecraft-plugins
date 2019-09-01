@@ -157,7 +157,9 @@ class Plugin: JavaPlugin(), Listener {
       }
     }
     else if ( args[ 0 ] == "buy" && sender is Player ) {
-      val chunk = sender.location.chunk
+      val argX:Int? = if ( args.size >= 3 ) args[ 1 ].toIntOrNull() else null
+      val argZ:Int? = if ( args.size >= 3 ) args[ 2 ].toIntOrNull() else null
+      val chunk = if ( args.size >= 3 && argX != null && argZ != null ) sender.world.getChunkAt( argX, argZ ) else sender.location.chunk
       val senderRegion = getCuboid( sender, CuboidType.REGION )
       val cuboidChunk = getCuboid( chunk )
       val inventory = sender.inventory
@@ -205,7 +207,9 @@ class Plugin: JavaPlugin(), Listener {
       else createChatError( "Nie możesz wykupić tego terenu!", sender )
     }
     else if ( args[ 0 ] == "sell" && sender is Player ) {
-      val chunk = sender.location.chunk
+      val argX:Int? = if ( args.size >= 3 ) args[ 1 ].toIntOrNull() else null
+      val argZ:Int? = if ( args.size >= 3 ) args[ 2 ].toIntOrNull() else null
+      val chunk = if ( args.size >= 3 && argX != null && argZ != null ) sender.world.getChunkAt( argX, argZ ) else sender.location.chunk
       val cuboidChunk = getCuboid( chunk )
 
       if ( cuboidChunk != null ) {
@@ -341,7 +345,7 @@ class Plugin: JavaPlugin(), Listener {
             with ( messages ) { info
               .addNextText( " &3-&7 $chunkForBuy: " )
               .addNextText( buy )
-              .clickCommand( "/cuboids buy" )
+              .clickCommand( "/cuboids buy ${chunk.x} ${chunk.z}" )
               .hoverText( "&7$chunkForBuyIronIngots: &3${cost.ironIngots}\n&7$chunkForBuyEmeralds: &3${cost.emeralds}" )
             }
           }
@@ -350,7 +354,7 @@ class Plugin: JavaPlugin(), Listener {
         else if ( canChunkBeSaled( chunk ) ) info
           .addNextText( " &3-&7 ${messages.chunkForSell}: " )
           .addNextText( messages.sell )
-          .clickCommand( "/cuboids sell" )
+          .clickCommand( "/cuboids sell ${chunk.x} ${chunk.z}" )
 
         info.addNextText( "\n" ).sendTo( player )
       }
