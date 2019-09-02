@@ -161,7 +161,7 @@ public class Plugin: JavaPlugin(), Listener {
         return playersSet
       }
     )
-    createChatMode( '>', ChatColor.GRAY,
+    createChatMode( '→', ChatColor.GRAY,
       test = fun( _:CommandSender ) = false,
       receivers = fun( _:CommandSender ) = mutableSetOf<Player>()
     )
@@ -182,9 +182,9 @@ public class Plugin: JavaPlugin(), Listener {
           if ( args.size > 1 ) {
             val senderName = if ( sender is Player ) sender.displayName else sender.name
             val reveiverName = if ( receiver is Player ) receiver.displayName else args[ 0 ]
-            val message = ">${ChatColor.GRAY}${args.slice( 1..(args.size - 1) ).joinToString( " " )}"
-            val nicknameA = "${ChatColor.GREEN}[Ty > ${ChatColor.WHITE}$reveiverName${ChatColor.GREEN}]"
-            val nicknameB = "${ChatColor.GREEN}[${ChatColor.WHITE}$senderName${ChatColor.GREEN} > Ty]"
+            val message = "→${ChatColor.GRAY}${args.slice( 1..(args.size - 1) ).joinToString( " " )}"
+            val nicknameA = "${ChatColor.GREEN}[Ty → ${ChatColor.WHITE}$reveiverName${ChatColor.GREEN}]"
+            val nicknameB = "${ChatColor.GREEN}[${ChatColor.WHITE}$senderName${ChatColor.GREEN} → Ty]"
             val messageA = createChatMessage( nicknameA, message )
             val messageB = createChatMessage( nicknameB, message )
 
