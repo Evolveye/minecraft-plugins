@@ -1,13 +1,4 @@
-.vscode
-
-*temp*
-
-*/*.*
+*/*
 
 !*/pom.xml
-
-*/src/test
-
-*/target/*
-!*/target/*.jar
-*/target/original*jar
+!*/src/
