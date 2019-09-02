@@ -52,11 +52,12 @@ class Plugin: JavaPlugin(), Listener {
   companion object messages {
     val youCannotInfereHere = "Nie możesz ingerować na tym obszarze!"
     val youCannotPlaceCampfire = "Ogniska można stawiać jedynie na zabezpieczonym terenie, oraz gdy nie posiada się obozowiska"
-    val youEnteredARegionCalled = "Wkroczyłeś na teren o nazwie: &7"
-    val youLeavedARegionCalled = "Wyszedłeś z terenu pod nazwą: &7"
+    val youEnteredACuboid = "Wkroczyłeś na"
+    val youLeavedACuboid = "Opuszczony teren"
     val nobodyTerrain = "Ten teren do nikogo nie należy"
     val cuboidName = "Nazwa"
     val cuboidSize = "Powierzchnia"
+    val cuboidColoniesSize = "Powierzchnia kolonii"
     val cuboidOwner = "Właściciel"
     val cuboidManagers = "Zarządcy"
     val cuboidMembers = "Mieszkańcy"
@@ -294,16 +295,15 @@ class Plugin: JavaPlugin(), Listener {
     val cuboidChunkFrom = getCuboidChunk( chunkFrom.x, chunkFrom.z, chunkFrom.world.name )
 
     if ( (cuboidChunkFrom == null) == (cuboidChunkTo == null) ) return
-    if ( cuboidChunkFrom == null ) {
-      val cuboidName = cuboids.get( cuboidChunkTo!!.cuboidId )!!.name.replace( '_', ' ' )
 
-      createChatInfo( "${messages.youEnteredARegionCalled}$cuboidName", e.player )
-    }
-    else {
-      val cuboidName = cuboids.get( cuboidChunkFrom.cuboidId )!!.name.replace( '_', ' ' )
+    val message = if ( cuboidChunkFrom == null ) messages.youEnteredACuboid else messages.youLeavedACuboid
+    val cuboid = cuboids.get( (if ( cuboidChunkFrom == null ) cuboidChunkTo else cuboidChunkFrom)!!.cuboidId )!!
+    val name = ("&7"
+      + (if ( cuboid.parentId == 0 ) "" else cuboids.get( cuboid.parentId )!!.name.replace( '_', ' ' ) + " &D7::&7 ")
+      + cuboid.name.replace( '_', ' ' )
+    )
 
-      createChatInfo( "${messages.youLeavedARegionCalled}$cuboidName", e.player )
-    }
+    createChatInfo( "$message: $name", e.player )
   }
   @EventHandler
   public fun onEntityExplode( e:EntityExplodeEvent ) {
@@ -358,22 +358,22 @@ class Plugin: JavaPlugin(), Listener {
         }
       }
       else {
-        val info = createModuledChatMessage( "&3${messages.infoAboutCuboid}:\n\n" )
+        val info = createModuledChatMessage( "&3${messages.infoAboutCuboid}:\n" )
 
         if ( cuboidOnChunk != null ) {
           val allMembers = cuboidOnChunk.members.values
           val managers = allMembers.filter { it.manager }.map { (UUID) -> playerName( UUID ) }.joinToString( ", " )
           val members = allMembers.map { (UUID) -> playerName( UUID ) }.joinToString( ", " )
-          val size = cuboidsChunks.filter { it.cuboidId == cuboidOnChunk.id}.size
+          val size = cuboidsChunks.filter { it.cuboidId == cuboidOnChunk.id }.size
+          val coloniesSize = cuboidsChunks.filter { getCuboid( it.cuboidId )!!.parentId == cuboidOnChunk.id }.size
 
           info
             .addNextText( " &3-&7 ${messages.cuboidName}: &1${cuboidOnChunk.name.replace( '_', ' ' )}\n" )
             .addNextText( " &3-&7 ${messages.cuboidSize}: &1$size\n" )
-            .addNextText( "\n" )
+            .addNextText( " &3-&7 ${messages.cuboidColoniesSize}: &1$coloniesSize\n" )
             .addNextText( " &3-&7 ${messages.cuboidOwner}: &1${playerName( cuboidOnChunk.ownerUUID )}\n" )
             .addNextText( " &3-&7 ${messages.cuboidManagers}: &1$managers\n" )
             .addNextText( " &3-&7 ${messages.cuboidMembers}: &1$members\n" )
-            .addNextText( "\n" )
         }
         else info.addNextText( "   &7&i${messages.nobodyTerrain}\n\n")
 
@@ -384,7 +384,7 @@ class Plugin: JavaPlugin(), Listener {
 
               // Buy chunk
               if ( canPlayerBuyChunk( player, chunk ) ) info
-                .addNextText( messages.buyChunk )
+                .addNextText( "   ${messages.buyChunk}"  )
                 .clickCommand( "/cuboids buy ${chunk.x} ${chunk.z}" )
                 .hoverText( "&7${messages.chunkForBuyIronIngots}: &3${cost.ironIngots}\n&7${messages.chunkForBuyEmeralds}: &3${cost.emeralds}" )
               else info.addNextText( "   &7&i${messages.noActions}" )
