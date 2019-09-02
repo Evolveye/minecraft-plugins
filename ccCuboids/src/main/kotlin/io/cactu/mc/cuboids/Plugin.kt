@@ -4,6 +4,7 @@ import io.cactu.mc.chat.createChatInfo
 import io.cactu.mc.chat.createChatError
 import io.cactu.mc.chat.createChatMode
 import io.cactu.mc.chat.createModuledChatMessage
+import io.cactu.mc.chat.ModuledChatMessage
 import io.cactu.mc.doQuery
 import io.cactu.mc.doUpdatingQuery
 
@@ -57,7 +58,7 @@ class Plugin: JavaPlugin(), Listener {
     val tentRemoved = "Obozowisko &3rozebrane pomyślnie"
     val regionCreated = "&3Region utworzony pomyślnie"
     val regionExpanded = "&3Region powiększony pomyślnie"
-    val colonyCreated = "&Kolonia utworzona pomyślnie"
+    val colonyCreated = "&3Kolonia utworzona pomyślnie"
     val colonyExpanded = "&3Kolonia powiększona pomyślnie"
     val chunkForSell = "Chunk na sprzedaż"
     val chunkForBuy = "Chunk do kupienia"
@@ -190,7 +191,7 @@ class Plugin: JavaPlugin(), Listener {
         val cuboidMember = getCuboidMember( cuboidToExpand, sender.uniqueId.toString(), true )
 
         if ( cuboidMember != null && cuboidMember.manager ) {
-          val cost = getNextCuboidChnkCost( sender )!!
+          val cost = getNextCuboidChunkCost( sender )!!
           val emeralds = inventory.contains( Material.EMERALD, cost.emeralds )
           val ironIngots = inventory.contains( Material.IRON_INGOT, cost.ironIngots )
 
@@ -223,7 +224,7 @@ class Plugin: JavaPlugin(), Listener {
 
         if ( cuboidMember.manager ) {
           if ( canChunkBeSaled( chunk ) ) {
-            val cost = getNextCuboidChnkCost( sender )!!
+            val cost = getNextCuboidChunkCost( sender )!!
             val cuboidChunks = cuboidsChunks.filter { it.cuboidId == cuboidChunk.id }
 
             if ( cuboidChunks.size == 1 ) {
@@ -319,65 +320,75 @@ class Plugin: JavaPlugin(), Listener {
     val player = e.player
     val typeStr = block.type.toString()
     val cuboidMember = getCuboidMember( block.chunk, player.uniqueId.toString() )
-    val cuboidOnChunk = getCuboid( chunk )
 
     if ( e.action == Action.LEFT_CLICK_BLOCK && player.inventory.itemInMainHand.type == Material.LANTERN ) {
-      if ( cuboidOnChunk != null && cuboidOnChunk.type == CuboidType.TENT ) {
-        val region = getCuboid( player, CuboidType.REGION )
+      val cuboidOnChunk = getCuboid( chunk )
+      val region = getCuboid( player, CuboidType.REGION )
 
+      if ( cuboidOnChunk != null && cuboidOnChunk.type == CuboidType.TENT ) {
         if ( region == null ) {
-          if ( player.inventory.contains( Material.EMERALD_BLOCK ) )
-            createModuledChatMessage( "${messages.tentToRegionPosibility}&D7: " )
-              .addNextText( messages.buy )
-              .clickCommand( "/cuboids buy ${chunk.x} ${chunk.z}" )
-              .sendTo( player )
-          else createModuledChatMessage( messages.tentToRegionInability ).sendTo( player )
-        } else {
-          if ( player.inventory.contains( Material.EMERALD_BLOCK, 5 ) )
-            createModuledChatMessage( "${messages.tentToColonyPosibility}&D7: " )
-              .addNextText( messages.buy )
-              .clickCommand( "/cuboids buy ${chunk.x} ${chunk.z}" )
-              .sendTo( player )
-          else createModuledChatMessage( messages.tentToColonyInability ).sendTo( player )
+
+            // Create region
+            if ( player.inventory.contains( Material.EMERALD_BLOCK ) )
+              createModuledChatMessage( "${messages.tentToRegionPosibility}&D7: " )
+                .addNextText( messages.buy )
+                .clickCommand( "/cuboids buy ${chunk.x} ${chunk.z}" )
+                .sendTo( player )
+            else createModuledChatMessage( messages.tentToRegionInability ).sendTo( player )
+
+        }
+        else {
+
+            // Create colony
+            if ( player.inventory.contains( Material.EMERALD_BLOCK, 5 ) )
+              createModuledChatMessage( "${messages.tentToColonyPosibility}&D7: " )
+                .addNextText( messages.buy )
+                .clickCommand( "/cuboids buy ${chunk.x} ${chunk.z}" )
+                .sendTo( player )
+            else createModuledChatMessage( messages.tentToColonyInability ).sendTo( player )
+
         }
       }
       else {
-        var info = createModuledChatMessage( "&3${messages.infoAboutCuboid}:\n\n" )
+        val info = createModuledChatMessage( "&3${messages.infoAboutCuboid}:\n\n" )
 
-        if ( cuboidOnChunk == null ) {
-          if ( canPlayerBuyChunk( player, chunk ) ) {
-            val cost = getNextCuboidChnkCost( player )!!
+        if ( region != null ) {
+          val cost = getNextCuboidChunkCost( player )!!
 
-            with ( messages ) { info
-              .addNextText( " &3-&7 $chunkForBuy: " )
-              .addNextText( buy )
-              .clickCommand( "/cuboids buy ${chunk.x} ${chunk.z}" )
-              .hoverText( "&7$chunkForBuyIronIngots: &3${cost.ironIngots}\n&7$chunkForBuyEmeralds: &3${cost.emeralds}" )
-            }
+          if ( cuboidOnChunk == null || cuboidOnChunk.type == CuboidType.RESERVE ) {
+
+              // Buy chunk
+              if ( canPlayerBuyChunk( player, chunk ) ) info
+                .addNextText( " &3-&7 ${messages.chunkForBuy}: " )
+                .addNextText( messages.buy )
+                .clickCommand( "/cuboids buy ${chunk.x} ${chunk.z}" )
+                .hoverText( "&7${messages.chunkForBuyIronIngots}: &3${cost.ironIngots}\n&7${messages.chunkForBuyEmeralds}: &3${cost.emeralds}" )
+              else info.addNextText( "   &D7&i${messages.noActions}" )
+
           }
-          else info.addNextText( "   &D7&i${messages.noActions}" )
+          else if ( cuboidOnChunk.type == CuboidType.REGION || cuboidOnChunk.type == CuboidType.COLONY ) {
+
+              // Sell chunk
+              if ( canChunkBeSaled( chunk ) ) info
+                .addNextText( " &3-&7 ${messages.chunkForSell}: " )
+                .addNextText( messages.sell )
+                .clickCommand( "/cuboids sell ${chunk.x} ${chunk.z}" )
+
+          }
         }
-        else if ( canChunkBeSaled( chunk ) ) info
-          .addNextText( " &3-&7 ${messages.chunkForSell}: " )
-          .addNextText( messages.sell )
-          .clickCommand( "/cuboids sell ${chunk.x} ${chunk.z}" )
 
         info.addNextText( "\n" ).sendTo( player )
       }
 
       return e.setCancelled( true )
     }
+    else if ( cuboidMember == null && isChunkCuboid( chunk ) ) {
+      if ( !typeStr.contains( "STONE" ) && (typeStr.contains( "BUTTON" ) || typeStr.contains( "PLATE" ) ) ) return
+      if ( typeStr.contains( "DOOR" ) && block.type != Material.IRON_DOOR ) return
 
-    if ( cuboidMember == null ) {
-      if ( isChunkCuboid( block.chunk ) ) {
-        if ( !typeStr.contains( "STONE" ) && (typeStr.contains( "BUTTON" ) || typeStr.contains( "PLATE" ) ) ) return
-        if ( typeStr.contains( "DOOR" ) && block.type != Material.IRON_DOOR ) return
+      createChatError( messages.youCannotInfereHere, player )
 
-        createChatError( messages.youCannotInfereHere, player )
-
-        return e.setCancelled( true )
-      }
-      else return
+      return e.setCancelled( true )
     }
   }
   @EventHandler
@@ -396,32 +407,38 @@ class Plugin: JavaPlugin(), Listener {
     val player = e.player
 
     if ( block.type == Material.CAMPFIRE ) {
-      if ( getCuboid( player, CuboidType.TENT ) != null ) {
-        createChatInfo( messages.youCannotPlaceCampfire, player )
-        e.setCancelled( true )
-      }
-      else if ( getCuboid( block.chunk ) == null ) {
-        if ( !isGoodPlaceForCuboid( block.chunk, CuboidType.TENT ) ) {
-          createChatInfo( messages.tentTooCloseToAnotherCuboid, player )
-          e.setCancelled( true )
+      val tent = getCuboid( player, CuboidType.TENT )
+      val cuboidMember = getCuboidMember( block.chunk, player.uniqueId.toString() )
+      val goodDistance = isGoodPlaceForCuboid( block.chunk, CuboidType.TENT )
+
+      if ( cuboidMember == null ) {
+        if ( goodDistance ) {
+          if ( tent == null ) {
+            val x = block.x
+            val y = block.y
+            val z = block.z
+            val world = block.world.name
+            val cuboid = createCuboid(
+              "Obozowisko gracza ${player.displayName}", CuboidType.TENT, player, block.chunk
+              ) ?: return
+            val tentCore = ActionBlock( x, y, z, block.world.name, cuboid.id, "tent_core" )
+
+            doUpdatingQuery( """
+              INSERT INTO action_blocks (plugin, type, world, data, x, y, z)
+              VALUES ('ccCuboids', 'tent_core', '$world', '${cuboid.id}', $x, $y, $z)
+            """ )
+
+            actionBlocks.add( tentCore )
+            createChatInfo( messages.tentCreated, player )
+          }
+          else {
+            createChatInfo( messages.youCannotPlaceCampfire, player )
+            e.setCancelled( true )
+          }
         }
         else {
-          val x = block.x
-          val y = block.y
-          val z = block.z
-          val world = block.world.name
-          val cuboid = createCuboid(
-            "Obozowisko gracza ${player.displayName}", CuboidType.TENT, player, block.chunk
-            ) ?: return
-          val tentCore = ActionBlock( x, y, z, block.world.name, cuboid.id, "tent_core" )
-
-          doUpdatingQuery( """
-            INSERT INTO action_blocks (plugin, type, world, data, x, y, z)
-            VALUES ('ccCuboids', 'tent_core', '$world', '${cuboid.id}', $x, $y, $z)
-          """ )
-
-          actionBlocks.add( tentCore )
-          createChatInfo( messages.tentCreated, player )
+          createChatInfo( messages.tentTooCloseToAnotherCuboid, player )
+          e.setCancelled( true )
         }
       }
     }
@@ -450,6 +467,8 @@ class Plugin: JavaPlugin(), Listener {
     val REGION = CuboidType.REGION
 
     for ( cuboidChunk in cuboidsChunks ) {
+      if ( getCuboid( cuboidChunk.cuboidId )!!.type == CuboidType.RESERVE ) continue
+
       val x = newCuboidX - cuboidChunk.x
       val z = newCuboidZ - cuboidChunk.z
       val distance = Math.hypot( x.toDouble(), z.toDouble() )
@@ -594,16 +613,16 @@ class Plugin: JavaPlugin(), Listener {
 
     return chunkNeighbour
   }
-  fun getNextCuboidChnkCost( player:Player ):CuboidChunkCost? {
+  fun getNextCuboidChunkCost( player:Player ):CuboidChunkCost? {
     val cuboid = getCuboid( player ) ?: return null
 
-    return getNextCuboidChnkCost( cuboid.id )
+    return getNextCuboidChunkCost( cuboid.id )
   }
-  fun getNextCuboidChnkCost( cuboid:Cuboid ):CuboidChunkCost = getNextCuboidChnkCost( cuboid.id )
-  fun getNextCuboidChnkCost( cuboidId:Int ):CuboidChunkCost {
+  fun getNextCuboidChunkCost( cuboid:Cuboid ):CuboidChunkCost = getNextCuboidChunkCost( cuboid.id )
+  fun getNextCuboidChunkCost( cuboidId:Int ):CuboidChunkCost {
     val chunksCount = cuboidsChunks.filter { it.cuboidId == cuboidId }.size
 
-    return CuboidChunkCost( chunksCount % 5, (chunksCount / 5) * 2 )
+    return CuboidChunkCost( chunksCount % 5, chunksCount / 5 * 2 )
   }
 
   fun buildCuboidFromQuery( cuboidFromQuery:ResultSet ):Cuboid {
