@@ -45,6 +45,9 @@ class Plugin: JavaPlugin(), Listener {
       ) )
     }
   }
+  override fun onDisable() {
+    server.onlinePlayers.forEach { updatePlayerTime( it.uniqueId.toString() ) }
+  }
 
   @EventHandler
   public fun onPlayerJoin( e:PlayerJoinEvent ) {

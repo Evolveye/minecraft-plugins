@@ -7,6 +7,7 @@ import io.cactu.mc.chat.createModuledChatMessage
 import io.cactu.mc.chat.ModuledChatMessage
 import io.cactu.mc.doQuery
 import io.cactu.mc.doUpdatingQuery
+import io.cactu.mc.players.playerName
 
 import java.sql.ResultSet
 import java.util.UUID
@@ -53,6 +54,12 @@ class Plugin: JavaPlugin(), Listener {
     val youCannotPlaceCampfire = "Ogniska można stawiać jedynie na zabezpieczonym terenie, oraz gdy nie posiada się obozowiska"
     val youEnteredARegionCalled = "Wkroczyłeś na teren o nazwie: &7"
     val youLeavedARegionCalled = "Wyszedłeś z terenu pod nazwą: &7"
+    val nobodyTerrain = "Ten teren do nikogo nie należy"
+    val cuboidName = "Nazwa"
+    val cuboidSize = "Powierzchnia"
+    val cuboidOwner = "Właściciel"
+    val cuboidManagers = "Zarządcy"
+    val cuboidMembers = "Mieszkańcy"
     val tentTooCloseToAnotherCuboid = "Znajdujesz się zbyt blisko jakiegoś regionu aby zabezpieczyć ten chunk"
     val tentCreated = "Obozowisko &3rozbite pomyślnie"
     val tentRemoved = "Obozowisko &3rozebrane pomyślnie"
@@ -65,6 +72,7 @@ class Plugin: JavaPlugin(), Listener {
     val chunkForBuyNeededItems = "Wymagane przedmioty"
     val chunkForBuyIronIngots = "Sztabki żelaza"
     val chunkForBuyEmeralds = "Emeraldy"
+    val buyChunk = "&1&uWykup ten teren"
     val buy = "&1&ukup"
     val sell = "&1&usprzedaj"
     val noActions = "Brak akcji"
@@ -352,6 +360,23 @@ class Plugin: JavaPlugin(), Listener {
       else {
         val info = createModuledChatMessage( "&3${messages.infoAboutCuboid}:\n\n" )
 
+        if ( cuboidOnChunk != null ) {
+          val allMembers = cuboidOnChunk.members.values
+          val managers = allMembers.filter { it.manager }.map { (UUID) -> playerName( UUID ) }.joinToString( ", " )
+          val members = allMembers.map { (UUID) -> playerName( UUID ) }.joinToString( ", " )
+          val size = cuboidsChunks.filter { it.cuboidId == cuboidOnChunk.id}.size
+
+          info
+            .addNextText( " &3-&7 ${messages.cuboidName}: &1${cuboidOnChunk.name.replace( '_', ' ' )}\n" )
+            .addNextText( " &3-&7 ${messages.cuboidSize}: &1$size\n" )
+            .addNextText( "\n" )
+            .addNextText( " &3-&7 ${messages.cuboidOwner}: &1${playerName( cuboidOnChunk.ownerUUID )}\n" )
+            .addNextText( " &3-&7 ${messages.cuboidManagers}: &1$managers\n" )
+            .addNextText( " &3-&7 ${messages.cuboidMembers}: &1$members\n" )
+            .addNextText( "\n" )
+        }
+        else info.addNextText( "   &7&i${messages.nobodyTerrain}\n\n")
+
         if ( region != null ) {
           val cost = getNextCuboidChunkCost( player )!!
 
@@ -359,11 +384,10 @@ class Plugin: JavaPlugin(), Listener {
 
               // Buy chunk
               if ( canPlayerBuyChunk( player, chunk ) ) info
-                .addNextText( " &3-&7 ${messages.chunkForBuy}: " )
-                .addNextText( messages.buy )
+                .addNextText( messages.buyChunk )
                 .clickCommand( "/cuboids buy ${chunk.x} ${chunk.z}" )
                 .hoverText( "&7${messages.chunkForBuyIronIngots}: &3${cost.ironIngots}\n&7${messages.chunkForBuyEmeralds}: &3${cost.emeralds}" )
-              else info.addNextText( "   &D7&i${messages.noActions}" )
+              else info.addNextText( "   &7&i${messages.noActions}" )
 
           }
           else if ( cuboidOnChunk.type == CuboidType.REGION || cuboidOnChunk.type == CuboidType.COLONY ) {
@@ -377,7 +401,7 @@ class Plugin: JavaPlugin(), Listener {
           }
         }
 
-        info.addNextText( "\n" ).sendTo( player )
+        info.sendTo( player )
       }
 
       return e.setCancelled( true )

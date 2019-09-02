@@ -43,6 +43,12 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
+      <groupId>io.cactu.mc.players</groupId>
+      <artifactId>ccPlayers</artifactId>
+      <version>1.0-SNAPSHOT</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
       <groupId>io.cactu.mc.chat</groupId>
       <artifactId>ccChat</artifactId>
       <version>1.0-SNAPSHOT</version>
