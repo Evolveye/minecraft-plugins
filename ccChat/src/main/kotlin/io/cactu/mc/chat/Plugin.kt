@@ -155,7 +155,9 @@ public class Plugin: JavaPlugin(), Listener {
         val playersSet = mutableSetOf<Player>()
 
         server.onlinePlayers.forEach {
-          if ( it.location.distance( playerLoc ) < 100 ) playersSet.add( it )
+          val location = it.location
+
+          if ( location.world == playerLoc.world && location.distance( playerLoc ) < 100 ) playersSet.add( it )
         }
 
         return playersSet
