@@ -54,6 +54,7 @@ class Plugin: JavaPlugin(), Listener {
     val youCannotPlaceCampfire = "Ogniska można stawiać jedynie na zabezpieczonym terenie, oraz gdy nie posiada się obozowiska"
     val youEnteredACuboid = "Wkroczyłeś na"
     val youLeavedACuboid = "Opuszczony teren"
+    val youNeedToHaveCuboidInitializer = "Aby zajac teren musisz posiadać ksiażkę nazwana tak jak będzie się nazywać ten teren"
     val nobodyTerrain = "Ten teren do nikogo nie należy"
     val cuboidName = "Nazwa"
     val cuboidSize = "Powierzchnia"
@@ -73,9 +74,11 @@ class Plugin: JavaPlugin(), Listener {
     val chunkForBuyNeededItems = "Wymagane przedmioty"
     val chunkForBuyIronIngots = "Sztabki żelaza"
     val chunkForBuyEmeralds = "Emeraldy"
-    val buyChunk = "&1&uWykup ten teren"
-    val buy = "&1&ukup"
-    val sell = "&1&usprzedaj"
+    val buyChunk = "Wykup ten teren"
+    val sellChunk = "Sprzedaj chunk"
+    val buy = "kup"
+    val rename = "Zmień nazwę"
+    val renamed = "&3Nazwę zmieniono pomyslnie"
     val noActions = "Brak akcji"
     val infoAboutCuboid = "Informacje o regionie"
     val tentToRegionPosibility = "&3Masz możliwość stworzenia regionu"
@@ -151,6 +154,7 @@ class Plugin: JavaPlugin(), Listener {
   }
   override fun onCommand( sender:CommandSender, command:Command, label:String, args:Array<String> ):Boolean {
     if ( args.size == 0 ) createChatError( "Nie podałeś akcji", sender )
+
     else if ( args[ 0 ] == "create" && (sender !is Player || sender.isOp()) ) {
       if ( args.size == 1 ) createChatError( "Nie podałeś nazwy regionu do utworzenia!", sender )
       else if ( args.size == 2 ) createChatError( "Nie podałeś gracza, do którego należy przypisać region!", sender )
@@ -177,24 +181,29 @@ class Plugin: JavaPlugin(), Listener {
       val inventory = sender.inventory
 
       if ( cuboidChunk != null ) {
-        if ( cuboidChunk.type == CuboidType.TENT && cuboidChunk.ownerUUID == sender.uniqueId.toString() ) {
-          if ( inventory.contains( Material.EMERALD_BLOCK, 1 ) && senderRegion == null ) {
-            inventory.removeItem( ItemStack( Material.EMERALD_BLOCK, 1 ) )
+        var cuboidInitializerName = havePlayerCuboidInitializer( sender )
 
-            updateCuboid( cuboidChunk, CuboidType.REGION )
+        if ( cuboidInitializerName != "" ) {
+          if ( cuboidChunk.type == CuboidType.TENT && cuboidChunk.ownerUUID == sender.uniqueId.toString() ) {
+            if ( inventory.contains( Material.EMERALD_BLOCK, 1 ) && senderRegion == null ) {
+              inventory.removeItem( ItemStack( Material.EMERALD_BLOCK, 1 ) )
+              removeCuboidInitializer( sender )
 
-            createChatInfo( messages.regionCreated, sender )
+              updateCuboid( cuboidChunk, CuboidType.REGION, name=cuboidInitializerName )
+              createChatInfo( messages.regionCreated, sender )
+            }
+            else if ( inventory.contains( Material.EMERALD_BLOCK, 5 ) && senderRegion != null ) {
+              inventory.removeItem( ItemStack( Material.EMERALD_BLOCK, 5 ) )
+              removeCuboidInitializer( sender )
+
+              updateCuboid( cuboidChunk, CuboidType.COLONY, name=cuboidInitializerName, parentId=senderRegion.id )
+              createChatInfo( messages.colonyCreated, sender )
+            }
+            else createChatError( "Nie stać Cię na kupno regionu!", sender )
           }
-          else if ( inventory.contains( Material.EMERALD_BLOCK, 5 ) && senderRegion != null ) {
-            inventory.removeItem( ItemStack( Material.EMERALD_BLOCK, 5 ) )
-
-            updateCuboid( cuboidChunk, CuboidType.COLONY, senderRegion.id )
-
-            createChatInfo( messages.colonyCreated, sender )
-          }
-          else createChatError( "Nie stać Cię na kupno regionu!", sender )
+          else createChatError( "Nie możesz wykupić tego terenu!", sender )
         }
-        else createChatError( "Nie możesz wykupić tego terenu!", sender )
+        else createChatError( messages.youNeedToHaveCuboidInitializer, sender )
       }
       else if ( senderRegion != null && cuboidToExpand != null ) {
         val cuboidMember = getCuboidMember( cuboidToExpand, sender.uniqueId.toString(), true )
@@ -270,6 +279,22 @@ class Plugin: JavaPlugin(), Listener {
       }
       else createChatError( "Nie znajdujesz się na cuboidzie, który mógłbyś sprzedać!", sender )
     }
+    else if ( args[ 0 ] == "rename" && sender is Player ) {
+      var cuboidInitializerName = havePlayerCuboidInitializer( sender )
+      val cuboidOnChunk = getCuboid( sender.location.chunk )
+
+      if ( cuboidOnChunk != null ) {
+        if ( cuboidInitializerName != "" ) {
+          sender.inventory.removeItem( ItemStack( Material.BOOK, 1 ) )
+          removeCuboidInitializer( sender )
+
+          updateCuboid( cuboidOnChunk, name=cuboidInitializerName )
+          createChatInfo( messages.renamed, sender )
+        }
+        else createChatError( "Zaby zmienić nazwę cuboidu porzebujesz książki ze zmienioną nazwą!", sender )
+      }
+      else createChatError( "Zaby zmienić nazwę cuboidu musisz się znajdować na jego terenie!", sender )
+    }
     else if ( args[ 0 ] == "remove" && (sender !is Player || sender.isOp())  ) {
       if ( args.size == 1 ) createChatError( "Nie podałeś nazwy regionu do usunięcia!", sender )
       else if ( getCuboid( args[ 1 ] ) == null ) createChatError( "Wskazany cuboid nie istnieje!", sender )
@@ -299,8 +324,8 @@ class Plugin: JavaPlugin(), Listener {
     val message = if ( cuboidChunkFrom == null ) messages.youEnteredACuboid else messages.youLeavedACuboid
     val cuboid = cuboids.get( (if ( cuboidChunkFrom == null ) cuboidChunkTo else cuboidChunkFrom)!!.cuboidId )!!
     val name = ("&7"
-      + (if ( cuboid.parentId == 0 ) "" else cuboids.get( cuboid.parentId )!!.name.replace( '_', ' ' ) + " &D7::&7 ")
-      + cuboid.name.replace( '_', ' ' )
+      + (if ( cuboid.parentId == 0 ) "" else cuboids.get( cuboid.parentId )!!.name + " &D7::&7 ")
+      + cuboid.name
     )
 
     createChatInfo( "$message: $name", e.player )
@@ -326,36 +351,41 @@ class Plugin: JavaPlugin(), Listener {
     val block = e.clickedBlock ?: return
     val chunk = block.chunk
     val player = e.player
+    val inventory = player.inventory
     val typeStr = block.type.toString()
     val cuboidMember = getCuboidMember( block.chunk, player.uniqueId.toString() )
 
-    if ( e.action == Action.LEFT_CLICK_BLOCK && player.inventory.itemInMainHand.type == Material.LANTERN ) {
+    if ( e.action == Action.LEFT_CLICK_BLOCK && inventory.itemInMainHand.type == Material.LANTERN ) {
       val cuboidOnChunk = getCuboid( chunk )
       val region = getCuboid( player, CuboidType.REGION )
+      val cuboidInitializerName = havePlayerCuboidInitializer( player )
 
       if ( cuboidOnChunk != null && cuboidOnChunk.type == CuboidType.TENT ) {
-        if ( region == null ) {
+        if ( cuboidInitializerName != "" ) {
+          if ( region == null ) {
 
-            // Create region
-            if ( player.inventory.contains( Material.EMERALD_BLOCK ) )
-              createModuledChatMessage( "${messages.tentToRegionPosibility}&D7: " )
-                .addNextText( messages.buy )
-                .clickCommand( "/cuboids buy ${chunk.x} ${chunk.z}" )
-                .sendTo( player )
-            else createModuledChatMessage( messages.tentToRegionInability ).sendTo( player )
+              // Create region
+              if ( inventory.contains( Material.EMERALD_BLOCK ) )
+                createModuledChatMessage( "${messages.tentToRegionPosibility}&D7: " )
+                  .addNextText( "&1&u${messages.buy}" )
+                  .clickCommand( "/cuboids buy ${chunk.x} ${chunk.z}" )
+                  .sendTo( player )
+              else createModuledChatMessage( messages.tentToRegionInability ).sendTo( player )
 
+          }
+          else {
+
+              // Create colony
+              if ( inventory.contains( Material.EMERALD_BLOCK, 5 ) )
+                createModuledChatMessage( "${messages.tentToColonyPosibility}&D7: " )
+                  .addNextText( "&1&u${messages.buy}" )
+                  .clickCommand( "/cuboids buy ${chunk.x} ${chunk.z}" )
+                  .sendTo( player )
+              else createModuledChatMessage( messages.tentToColonyInability ).sendTo( player )
+
+          }
         }
-        else {
-
-            // Create colony
-            if ( player.inventory.contains( Material.EMERALD_BLOCK, 5 ) )
-              createModuledChatMessage( "${messages.tentToColonyPosibility}&D7: " )
-                .addNextText( messages.buy )
-                .clickCommand( "/cuboids buy ${chunk.x} ${chunk.z}" )
-                .sendTo( player )
-            else createModuledChatMessage( messages.tentToColonyInability ).sendTo( player )
-
-        }
+        else createChatInfo( messages.youNeedToHaveCuboidInitializer, player )
       }
       else {
         val info = createModuledChatMessage( "&3${messages.infoAboutCuboid}:\n" )
@@ -368,14 +398,14 @@ class Plugin: JavaPlugin(), Listener {
           val coloniesSize = cuboidsChunks.filter { getCuboid( it.cuboidId )!!.parentId == cuboidOnChunk.id }.size
 
           info
-            .addNextText( " &3-&7 ${messages.cuboidName}: &1${cuboidOnChunk.name.replace( '_', ' ' )}\n" )
+            .addNextText( " &3-&7 ${messages.cuboidName}: &1${cuboidOnChunk.name}\n" )
             .addNextText( " &3-&7 ${messages.cuboidSize}: &1$size\n" )
             .addNextText( " &3-&7 ${messages.cuboidColoniesSize}: &1$coloniesSize\n" )
             .addNextText( " &3-&7 ${messages.cuboidOwner}: &1${playerName( cuboidOnChunk.ownerUUID )}\n" )
             .addNextText( " &3-&7 ${messages.cuboidManagers}: &1$managers\n" )
             .addNextText( " &3-&7 ${messages.cuboidMembers}: &1$members\n" )
         }
-        else info.addNextText( "   &7&i${messages.nobodyTerrain}\n\n")
+        else info.addNextText( "   &7&i${messages.nobodyTerrain}")
 
         if ( region != null ) {
           val cost = getNextCuboidChunkCost( player )!!
@@ -384,18 +414,22 @@ class Plugin: JavaPlugin(), Listener {
 
               // Buy chunk
               if ( canPlayerBuyChunk( player, chunk ) ) info
-                .addNextText( "   ${messages.buyChunk}"  )
+                .addNextText( "\n   &1&u${messages.buyChunk}" )
                 .clickCommand( "/cuboids buy ${chunk.x} ${chunk.z}" )
                 .hoverText( "&7${messages.chunkForBuyIronIngots}: &3${cost.ironIngots}\n&7${messages.chunkForBuyEmeralds}: &3${cost.emeralds}" )
               else info.addNextText( "   &7&i${messages.noActions}" )
 
           }
           else if ( cuboidOnChunk.type == CuboidType.REGION || cuboidOnChunk.type == CuboidType.COLONY ) {
+            if ( cuboidInitializerName != "" ) info
+              .addNextText( " &3-&7 " )
+              .addNextText( "&1&u${messages.rename}\n" )
+              .clickCommand( "/cuboids rename" )
 
               // Sell chunk
               if ( canChunkBeSaled( chunk ) ) info
-                .addNextText( " &3-&7 ${messages.chunkForSell}: " )
-                .addNextText( messages.sell )
+                .addNextText( " &3- " )
+                .addNextText( "&1&u${messages.sellChunk}" )
                 .clickCommand( "/cuboids sell ${chunk.x} ${chunk.z}" )
 
           }
@@ -507,6 +541,33 @@ class Plugin: JavaPlugin(), Listener {
     return if ( getCuboidChunk( chunk.x, chunk.z, chunk.world.name ) == null ) false else true
   }
 
+  fun havePlayerCuboidInitializer( player:Player ):String {
+    val inventory = player.inventory
+    var initializerName = ""
+
+    for ( item in inventory.contents ) if ( item != null && item.type == Material.BOOK ) {
+      val name = item.itemMeta!!.displayName
+      if ( name == "" ) continue
+      else {
+        initializerName = name
+        break
+      }
+    }
+
+    return initializerName
+  }
+  fun removeCuboidInitializer( player:Player ) {
+    val inventory = player.inventory
+
+    for ( item in inventory.contents ) if ( item != null && item.type == Material.BOOK ) {
+      val name = item.itemMeta!!.displayName
+      if ( name == "" ) continue
+      else {
+        inventory.removeItem( item )
+        break
+      }
+    }
+  }
   fun canPlayerBuyChunk( player:Player, chunk:Chunk ):Boolean {
     val cuboidWhichCanBeExpanded = cuboidWhichBeExpandedByChunk( chunk ) ?: return false
 
@@ -677,7 +738,7 @@ class Plugin: JavaPlugin(), Listener {
     return cuboid
   }
   fun createCuboid( cuboidName:String, type:CuboidType, player:Player, chunk:Chunk ):Cuboid? {
-    val name = cuboidName.replace( ' ', '_' )
+    val name = cuboidName
     val existingCuboid = doQuery( "SELECT id FROM cuboids WHERE name='$name'" )
     val playerUUID = player.uniqueId.toString()
 
@@ -730,7 +791,7 @@ class Plugin: JavaPlugin(), Listener {
   }
   fun removeCuboid( cuboid:Cuboid ) = removeCuboid( cuboid.name )
   fun removeCuboid( name:String ):Boolean {
-    val existingCuboid = doQuery( "SELECT id FROM cuboids WHERE name='${name.replace( ' ', '_' )}'" )
+    val existingCuboid = doQuery( "SELECT id FROM cuboids WHERE name='$name'" )
 
     if ( !existingCuboid.next() ) return false
 
@@ -771,30 +832,24 @@ class Plugin: JavaPlugin(), Listener {
 
     return true
   }
-  fun updateCuboid( cuboid:Cuboid, type:CuboidType, parentId:Int?=null ) {
-    if ( cuboid.type == CuboidType.TENT ) {
-      val playerName = server.getPlayer( UUID.fromString( cuboid.ownerUUID ) )?.displayName ?: return
-
+  fun updateCuboid( cuboid:Cuboid, type:CuboidType?=null, name:String?=null, parentId:Int?=null ) {
+    if ( cuboid.type == CuboidType.TENT && name != null ) {
       for ( (x, y, z, world) in actionBlocks.filter { it.cuboidId == cuboid.id } )
         doUpdatingQuery( "DELETE FROM action_blocks WHERE x=$x and y=$y and z=$z and world='$world'" )
 
       actionBlocks.removeAll { it.type == "tent_core" && it.cuboidId == cuboid.id }
-
-      when ( type ) {
-        CuboidType.REGION -> cuboid.name = "Region_gracza_$playerName"
-        CuboidType.COLONY -> cuboid.name = "Kolonia_gracza_$playerName"
-
-        else -> {}
-      }
     }
 
     val newParentId = if ( parentId != null ) parentId else cuboid.parentId
+    val newName =     if ( name != null )     name     else cuboid.name
+    val newType =     if ( type != null )     type     else cuboid.type
 
-    cuboid.type = type
+    cuboid.type = newType
+    cuboid.name = newName
     cuboid.parentId = newParentId
 
     doUpdatingQuery(
-      "UPDATE cuboids SET type='$type', name='${cuboid.name}', parentCuboidId=$newParentId WHERE id=${cuboid.id}"
+      "UPDATE cuboids SET type='$newType', name='$newName', parentCuboidId=$newParentId WHERE id=${cuboid.id}"
     )
   }
 
