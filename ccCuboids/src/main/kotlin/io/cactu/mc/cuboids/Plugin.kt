@@ -4,6 +4,7 @@ import io.cactu.mc.chat.createChatInfo
 import io.cactu.mc.chat.createChatError
 import io.cactu.mc.chat.createChatMode
 import io.cactu.mc.chat.createModuledChatMessage
+import io.cactu.mc.chat.createChatMessage
 import io.cactu.mc.chat.ModuledChatMessage
 import io.cactu.mc.doQuery
 import io.cactu.mc.doUpdatingQuery
@@ -12,7 +13,6 @@ import io.cactu.mc.players.playerName
 import java.sql.ResultSet
 import java.util.UUID
 import java.util.Timer
-// import java.util.TimerTask
 
 import kotlin.concurrent.schedule
 
@@ -25,6 +25,7 @@ import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 import org.bukkit.entity.TNTPrimed
+import org.bukkit.entity.Monster
 import org.bukkit.inventory.ItemStack
 import org.bukkit.event.Listener
 import org.bukkit.event.EventHandler
@@ -42,7 +43,7 @@ enum class CuboidType { TENT, REGION, COLONY, RESERVE }
 data class CuboidChunkCost( val ironIngots:Int, val emeralds:Int )
 data class ActionBlock( val x:Int, val y:Int, val z:Int, val world:String, val cuboidId:Int, val type:String )
 data class CuboidChunk( val x:Int, val z:Int, val world:String, val cuboidId:Int )
-data class CuboidMember( val UUID:String, val cuboidId:Int, val owner:Boolean, val manager:Boolean )
+data class CuboidMember( val UUID:String, val cuboidId:Int, val owner:Boolean=false, var manager:Boolean=false )
 data class Cuboid(
   val id:Int,
   val ownerUUID:String,
@@ -58,11 +59,15 @@ class Plugin: JavaPlugin(), Listener {
     val youCannotPlaceCampfire = "Ogniska można stawiać jedynie na zabezpieczonym terenie, oraz gdy nie posiada się obozowiska"
     val youEnteredACuboid = "Wkroczyłeś na"
     val youLeavedACuboid = "Opuszczony teren"
-    val youNeedToHaveCuboidInitializer = "Aby zajac teren musisz posiadać ksiażkę nazwana tak jak będzie się nazywać ten teren"
+    val youNeedToHaveCuboidInitializer = "Aby zajac teren musisz posiadać ksiażkę nazwana w kowalde tak jak będzie się nazywać ten teren"
+    val youHaveBeenInvited = "Zostałeś zaproszony do regionu"
+    val playerHaveActiveInvite = "Ten gracz posiada już aktywne zaproszenie!"
+    val playerHaveOwnRegion = "Ten gracz posiada już swój region!"
+    val playerInThatRegion = "Ten gracz należy już do tego regionu!"
     val nobodyTerrain = "Ten teren do nikogo nie należy"
     val cuboidName = "Nazwa"
-    val cuboidSize = "Powierzchnia"
-    val cuboidColoniesSize = "Powierzchnia kolonii"
+    val cuboidSize = "Powierzchnia regionu w chunkach"
+    val cuboidColoniesSize = "Powierzchnia kolonii w chunkach"
     val cuboidOwner = "Właściciel"
     val cuboidManagers = "Zarządcy"
     val cuboidMembers = "Mieszkańcy"
@@ -84,7 +89,9 @@ class Plugin: JavaPlugin(), Listener {
     val rename = "Zmień nazwę"
     val renamed = "&3Nazwę zmieniono pomyslnie"
     val noActions = "Brak akcji"
+    val applyInvite = "Przyjmij"
     val infoAboutCuboid = "Informacje o regionie"
+    val tooManyNeighbours = "Chunk graniczny. Nie można go wykupić, gdyż rozgranicza różne terytoria"
     val tentToRegionPosibility = "&3Masz możliwość stworzenia regionu"
     val tentToRegionInability = "Aby kupić region potrzebujesz bloku emeraldu"
     val tentToColonyPosibility = "&3Masz możliwość stworzenia kolonii"
@@ -103,7 +110,7 @@ class Plugin: JavaPlugin(), Listener {
     server.pluginManager.registerEvents( this, this )
 
     createChatMode( '@', ChatColor.GOLD,
-      test = fun( player:CommandSender ) = if ( getCuboid( player as Player ) == null ) false else true,
+      test = fun( player:CommandSender ) = if ( getCuboid( player as Player, CuboidType.REGION ) == null ) false else true,
       receivers = fun( player:CommandSender ):MutableSet<Player> {
         val playersSet = mutableSetOf<Player>()
 
@@ -190,21 +197,24 @@ class Plugin: JavaPlugin(), Listener {
 
         if ( cuboidInitializerName != "" ) {
           if ( cuboidChunk.type == CuboidType.TENT && cuboidChunk.ownerUUID == sender.uniqueId.toString() ) {
-            if ( inventory.contains( Material.EMERALD_BLOCK, 1 ) && senderRegion == null ) {
-              inventory.removeItem( ItemStack( Material.EMERALD_BLOCK, 1 ) )
-              removeCuboidInitializer( sender )
+            if ( isGoodPlaceForCuboid( chunk, CuboidType.REGION ) ) {
+              if ( inventory.contains( Material.EMERALD_BLOCK, 1 ) && senderRegion == null ) {
+                inventory.removeItem( ItemStack( Material.EMERALD_BLOCK, 1 ) )
+                removeCuboidInitializer( sender )
 
-              updateCuboid( cuboidChunk, CuboidType.REGION, name=cuboidInitializerName )
-              createChatInfo( messages.regionCreated, sender )
-            }
-            else if ( inventory.contains( Material.EMERALD_BLOCK, 5 ) && senderRegion != null ) {
-              inventory.removeItem( ItemStack( Material.EMERALD_BLOCK, 5 ) )
-              removeCuboidInitializer( sender )
+                updateCuboid( cuboidChunk, CuboidType.REGION, name=cuboidInitializerName )
+                createChatInfo( messages.regionCreated, sender )
+              }
+              else if ( inventory.contains( Material.EMERALD_BLOCK, 5 ) && senderRegion != null ) {
+                inventory.removeItem( ItemStack( Material.EMERALD_BLOCK, 5 ) )
+                removeCuboidInitializer( sender )
 
-              updateCuboid( cuboidChunk, CuboidType.COLONY, name=cuboidInitializerName, parentId=senderRegion.id )
-              createChatInfo( messages.colonyCreated, sender )
+                updateCuboid( cuboidChunk, CuboidType.COLONY, name=cuboidInitializerName, parentId=senderRegion.id )
+                createChatInfo( messages.colonyCreated, sender )
+              }
+              else createChatError( "Nie stać Cię na kupno regionu!", sender )
             }
-            else createChatError( "Nie stać Cię na kupno regionu!", sender )
+            else createChatError( messages.youNeedToHaveCuboidInitializer, sender )
           }
           else createChatError( "Nie możesz wykupić tego terenu!", sender )
         }
@@ -300,13 +310,86 @@ class Plugin: JavaPlugin(), Listener {
       }
       else createChatError( "Żeby zmienić nazwę cuboidu musisz się znajdować na jego terenie!", sender )
     }
+    else if ( args[ 0 ] == "setRole" && sender is Player ) {
+      if ( args.size > 1 && args[ 1 ] == "manager" && args[ 1 ] == "inhabitant" ) {
+        if ( args.size > 2 ) {
+          val player = server.getPlayer( args[ 2 ] )
+
+          if ( player != null ) {
+            val cuboid = getCuboid( sender )
+
+            if ( cuboid != null ) {
+              val cuboidMember = cuboid.members.get( player.uniqueId.toString() )
+
+              if ( cuboidMember != null ) {
+                when ( args[ 1 ] ) {
+                  "manager" -> cuboidMember.manager = true
+                  "inhabitant" -> cuboidMember.manager = false
+                }
+
+                doUpdatingQuery( "UPDATE cuboids_members SET manager=${cuboidMember.manager} WHERE uuid='${player.uniqueId}'" )
+                createChatInfo( "Twoja nowa rola w regionie to: &1${args[ 1 ]}", player )
+              }
+              else createChatError( "Ten gracz nie jest członkiem twojego regionu!", sender )
+            }
+            else createChatError( "Nie jesteś w żadnym regionie aby kogoś awansować!", sender )
+          }
+          else createChatError( "Ten gracz nie jest obecnie na serwerze!", sender )
+        }
+        else createChatError( "Nie podałeś gracza do awansowania!", sender )
+      }
+      else createChatError( "Nie podałeś odpowiedniej roli do awansu!", sender )
+    }
+    else if ( args[ 0 ] == "invite" && sender is Player ) {
+      if ( args.size > 1 ) {
+        val player = server.getPlayer( args[ 1 ] )
+
+        if ( player != null ) {
+          val cuboid = getCuboid( sender )
+
+          if ( cuboid != null ) {
+            val invitedCuboid = getCuboid( player, CuboidType.REGION )
+
+            if ( invitedCuboid != null ) createChatError( messages.playerHaveOwnRegion, sender )
+            else if ( invitedCuboid == cuboid ) createChatError( messages.playerInThatRegion, sender )
+            else {
+              val cuboidNameWithoutSpaces = cuboid.name.replace( ' ', '_' )
+              val invite = Pair( cuboidNameWithoutSpaces, player.uniqueId.toString() )
+
+              if ( invites.contains( invite ) ) createChatError( messages.playerHaveActiveInvite, sender )
+              else {
+                invites.add( invite )
+
+                Timer().schedule( 1000 * 60 * 5 ) { invites.remove( invite ) }
+
+                createChatInfo( "&3Gracz &1${player.displayName}&3 zaproszony pomyślnie", sender )
+
+                createModuledChatMessage( "&3${messages.youHaveBeenInvited} &1${cuboid.name} &3- " )
+                  .addNextText( "&1&u${messages.applyInvite}" )
+                  .clickCommand( "/cuboids accept $cuboidNameWithoutSpaces" )
+                  .sendTo( player )
+              }
+            }
+          }
+          else createChatError( "Nie posiadasz regionu, do którego mógłbyś zapraszać graczy!", sender )
+        }
+        else createChatError( "Ten gracz nie jest obecnie na serwerze!", sender )
+      }
+      else createChatError( "Nie podałeś gracza, którego należałoby zaprosić!", sender )
+    }
     else if ( args[ 0 ] == "accept" && sender is Player ) {
       if ( args.size > 1 ) {
-        val invite = invites.find { it.first == args[ 1 ] && sender.uniqueId.toString() == it.second }
+        val playerUUID = sender.uniqueId.toString()
+        val invite = invites.find { it.first == args[ 1 ] && playerUUID == it.second }
 
         if ( invite != null ) {
+          val cuboid = getCuboid( invite.first.replace( '_', ' ' ) )!!
+
           invites.remove( invite )
-          addPlayerToCuboid( getCuboid( invite.first.replace( '_', ' ' ) )!!, sender )
+          cuboid.members.set( playerUUID, CuboidMember( playerUUID, cuboid.id ) )
+          createChatInfo( "&3Dołączyłeś do regionu &1${cuboid.name}", sender )
+          sendMessageToCuboidMembers( cuboid, "&3Gracz &1${sender.displayName}&3 dołączył do regionu" )
+          addPlayerToCuboid( cuboid, sender )
         }
         else createChatError( "Nie posiadasz zaproszenia do tego regionu!", sender )
       }
@@ -370,7 +453,6 @@ class Plugin: JavaPlugin(), Listener {
     val player = e.player
     val inventory = player.inventory
     val typeStr = block.type.toString()
-    val cuboidMember = getCuboidMember( block.chunk, player.uniqueId.toString() )
 
     if ( e.action == Action.LEFT_CLICK_BLOCK && inventory.itemInMainHand.type == Material.LANTERN ) {
       val cuboidOnChunk = getCuboid( chunk )
@@ -378,34 +460,38 @@ class Plugin: JavaPlugin(), Listener {
       val cuboidInitializerName = havePlayerCuboidInitializer( player )
 
       if ( cuboidOnChunk != null && cuboidOnChunk.type == CuboidType.TENT ) {
-        if ( cuboidInitializerName != "" ) {
-          if ( region == null ) {
+        if ( isGoodPlaceForCuboid( chunk, CuboidType.REGION ) ) {
+          if ( cuboidInitializerName != "" ) {
+            if ( region == null ) {
 
-              // Create region
-              if ( inventory.contains( Material.EMERALD_BLOCK ) )
-                createModuledChatMessage( "${messages.tentToRegionPosibility}&D7: " )
-                  .addNextText( "&1&u${messages.buy}" )
-                  .clickCommand( "/cuboids buy ${chunk.x} ${chunk.z}" )
-                  .sendTo( player )
-              else createModuledChatMessage( messages.tentToRegionInability ).sendTo( player )
+                // Create region
+                if ( inventory.contains( Material.EMERALD_BLOCK ) )
+                  createModuledChatMessage( "${messages.tentToRegionPosibility}&D7: " )
+                    .addNextText( "&1&u${messages.buy}" )
+                    .clickCommand( "/cuboids buy ${chunk.x} ${chunk.z}" )
+                    .sendTo( player )
+                else createModuledChatMessage( messages.tentToRegionInability ).sendTo( player )
 
+            }
+            else {
+
+                // Create colony
+                if ( inventory.contains( Material.EMERALD_BLOCK, 5 ) )
+                  createModuledChatMessage( "${messages.tentToColonyPosibility}&D7: " )
+                    .addNextText( "&1&u${messages.buy}" )
+                    .clickCommand( "/cuboids buy ${chunk.x} ${chunk.z}" )
+                    .sendTo( player )
+                else createModuledChatMessage( messages.tentToColonyInability ).sendTo( player )
+
+            }
           }
-          else {
-
-              // Create colony
-              if ( inventory.contains( Material.EMERALD_BLOCK, 5 ) )
-                createModuledChatMessage( "${messages.tentToColonyPosibility}&D7: " )
-                  .addNextText( "&1&u${messages.buy}" )
-                  .clickCommand( "/cuboids buy ${chunk.x} ${chunk.z}" )
-                  .sendTo( player )
-              else createModuledChatMessage( messages.tentToColonyInability ).sendTo( player )
-
-          }
+          else createChatInfo( messages.youNeedToHaveCuboidInitializer, player )
         }
-        else createChatInfo( messages.youNeedToHaveCuboidInitializer, player )
+        else createChatInfo( messages.tentTooCloseToAnotherCuboid, player )
       }
       else {
         val info = createModuledChatMessage( "&3${messages.infoAboutCuboid}:\n" )
+        val cuboidMember = if ( cuboidOnChunk != null ) getCuboidMember( cuboidOnChunk, player.uniqueId.toString(), true ) else null
 
         if ( cuboidOnChunk != null ) {
           val allMembers = cuboidOnChunk.members.values
@@ -420,7 +506,7 @@ class Plugin: JavaPlugin(), Listener {
             .addNextText( " &3-&7 ${messages.cuboidColoniesSize}: &1$coloniesSize\n" )
             .addNextText( " &3-&7 ${messages.cuboidOwner}: &1${playerName( cuboidOnChunk.ownerUUID )}\n" )
             .addNextText( " &3-&7 ${messages.cuboidManagers}: &1$managers\n" )
-            .addNextText( " &3-&7 ${messages.cuboidMembers}: &1$members\n" )
+            .addNextText( " &3-&7 ${messages.cuboidMembers}: &1$members" )
         }
         else info.addNextText( "   &7&i${messages.nobodyTerrain}")
 
@@ -434,18 +520,20 @@ class Plugin: JavaPlugin(), Listener {
                 .addNextText( "\n   &1&u${messages.buyChunk}" )
                 .clickCommand( "/cuboids buy ${chunk.x} ${chunk.z}" )
                 .hoverText( "&7${messages.chunkForBuyIronIngots}: &3${cost.ironIngots}\n&7${messages.chunkForBuyEmeralds}: &3${cost.emeralds}" )
-              else info.addNextText( "   &7&i${messages.noActions}" )
+              else if ( chunkCuboidsNeighbours( chunk ).size > 1 )
+                info.addNextText( "\n   &7&i${messages.tooManyNeighbours}" )
+              else info.addNextText( "\n   &7&i${messages.noActions}" )
 
           }
-          else if ( cuboidOnChunk.type == CuboidType.REGION || cuboidOnChunk.type == CuboidType.COLONY ) {
+          else if ( (cuboidOnChunk.type == CuboidType.REGION || cuboidOnChunk.type == CuboidType.COLONY) && cuboidMember != null && cuboidMember.manager ) {
             if ( cuboidInitializerName != "" ) info
-              .addNextText( " &3-&7 " )
-              .addNextText( "&1&u${messages.rename}\n" )
+              .addNextText( "\n &3-&7 " )
+              .addNextText( "&1&u${messages.rename}" )
               .clickCommand( "/cuboids rename" )
 
               // Sell chunk
               if ( canChunkBeSaled( chunk ) ) info
-                .addNextText( " &3- " )
+                .addNextText( "\n &3- " )
                 .addNextText( "&1&u${messages.sellChunk}" )
                 .clickCommand( "/cuboids sell ${chunk.x} ${chunk.z}" )
 
@@ -457,13 +545,13 @@ class Plugin: JavaPlugin(), Listener {
 
       return e.setCancelled( true )
     }
-    else if ( cuboidMember == null && isChunkCuboid( chunk ) ) {
+    else if ( (e.action == Action.RIGHT_CLICK_BLOCK || e.action == Action.PHYSICAL) && !canPlayerInfere( chunk, player ) ) {
       if ( !typeStr.contains( "STONE" ) && (typeStr.contains( "BUTTON" ) || typeStr.contains( "PLATE" ) ) ) return
       if ( typeStr.contains( "DOOR" ) && block.type != Material.IRON_DOOR ) return
 
-      createChatError( messages.youCannotInfereHere, player )
+      if ( e.action != Action.PHYSICAL ) createChatError( messages.youCannotInfereHere, player )
 
-      return e.setCancelled( true )
+      e.setCancelled( true )
     }
   }
   @EventHandler
@@ -473,22 +561,23 @@ class Plugin: JavaPlugin(), Listener {
 
     if ( damager !is Player ) return
     if ( entity is Player && damager.inventory.itemInMainHand.type == Material.LANTERN ) {
+      getCuboid( damager ) ?: return
+
       e.setCancelled( true )
 
-      val cuboidName = getCuboid( damager )?.name ?: return
-      val cuboidNameWithoutSpaces = cuboidName.replace( ' ', '_' )
-      val invite = Pair( cuboidNameWithoutSpaces, entity.uniqueId.toString() )
+      createModuledChatMessage( "&3Opcje użytkownika" )
+        .addNextText( "\n &3-&1&u " )
+        .addNextText( "Zaproś" )
+        .clickCommand( "/cuboids invite ${entity.displayName}")
+        .addNextText( "\n &3-&1&u " )
+        .addNextText( "Uczyń zarządcą" )
+        .clickCommand( "/cuboids setRole manager ${entity.displayName}")
+        .addNextText( "\n &3-&1&u " )
+        .addNextText( "Zabierz zarządcę" )
+        .clickCommand( "/cuboids setRole inhabitant ${entity.displayName}")
 
-      invites.add( invite )
-
-      Timer().schedule( 1000 * 60 * 5 ) { invites.remove( invite ) }
-
-      createModuledChatMessage( "&3Zostałeś zaproszony do regionu &1$cuboidName" )
-        .addNextText( "Przyjmij" )
-        .clickCommand( "/cuboids accept $cuboidNameWithoutSpaces" )
-        .sendTo( entity )
     }
-    else if ( !canPlayerInfere( entity.location.chunk, damager ) ) {
+    else if ( !canPlayerInfere( entity.location.chunk, damager ) && !(entity is Monster && entity.customName == null) ) {
       createChatError( messages.youCannotInfereHere, damager )
       e.setCancelled( true )
     }
@@ -540,7 +629,12 @@ class Plugin: JavaPlugin(), Listener {
     val player = e.player
     val block = e.block
 
-    if ( block.type == Material.CAMPFIRE ) {
+    if ( !canPlayerInfere( block.chunk, player ) ) {
+      createChatError( messages.youCannotInfereHere, player )
+
+      e.setCancelled( true )
+    }
+    else if ( block.type == Material.CAMPFIRE ) {
       val x = block.x
       val y = block.y
       val z = block.z
@@ -553,13 +647,22 @@ class Plugin: JavaPlugin(), Listener {
     }
   }
 
+  fun sendMessageToCuboidMembers( cuboid:Cuboid, message:String ) {
+    cuboid.members.forEach {
+      val player = server.getPlayer( UUID.fromString( it.value.UUID ) )
+
+      if ( player != null ) createChatInfo( message, player )
+    }
+  }
   fun isGoodPlaceForCuboid( chunk:Chunk, type:CuboidType ):Boolean {
     val newCuboidX = chunk.x
     val newCuboidZ = chunk.z
+    val cuboidOnChunkId = getCuboid( chunk )?.id ?: 0
     val REGION = CuboidType.REGION
 
     for ( cuboidChunk in cuboidsChunks ) {
       if ( getCuboid( cuboidChunk.cuboidId )!!.type == CuboidType.RESERVE ) continue
+      if ( cuboidOnChunkId == cuboidChunk.cuboidId ) continue
 
       val x = newCuboidX - cuboidChunk.x
       val z = newCuboidZ - cuboidChunk.z
@@ -635,11 +738,9 @@ class Plugin: JavaPlugin(), Listener {
   }
   fun canPlayerInfere( cuboidId:Int, playerUUID:String ):Boolean {
     val cuboid = getCuboid( cuboidId )!!
-    val cuboidMember = getCuboidMember( cuboid, playerUUID )
+    val cuboidMember = getCuboidMember( cuboid, playerUUID, true )
 
-    if ( cuboidMember != null ) return true
-    else if ( cuboid.parentId == null ) return false
-    else return canPlayerInfere( cuboid.parentId!!, playerUUID )
+    return if ( cuboidMember == null ) false else true
   }
 
   fun getCuboid( chunk:Chunk ):Cuboid? {
@@ -713,7 +814,7 @@ class Plugin: JavaPlugin(), Listener {
   fun getCuboidMember( cuboid:Cuboid, playerUUID:String, deepTest:Boolean=false ):CuboidMember? {
     for ( member in cuboid.members.values ) if ( member.UUID == playerUUID ) return member
 
-    if ( deepTest && cuboid.parentId != null ) return getCuboidMember(
+    if ( deepTest && cuboid.parentId != 0 ) return getCuboidMember(
       getCuboid( cuboid.parentId!! )!!,
       playerUUID,
       deepTest
@@ -721,21 +822,39 @@ class Plugin: JavaPlugin(), Listener {
 
     return null
   }
+  fun chunkCuboidsNeighbours( chunk:Chunk ):MutableSet<Int> {
+    val world = chunk.world.name
+    val baseX = chunk.x
+    val baseZ = chunk.z
+    var neighbours = mutableSetOf<Int>()
+
+    for ( x in -1..1 ) for ( z in -1..1 ) if ( x != 0 || z != 0 ) {
+      val neighbour = getCuboidChunk( baseX + x, baseZ + z, world ) ?: continue
+
+      neighbours.add( neighbour.cuboidId )
+    }
+
+    return neighbours
+  }
   fun cuboidWhichBeExpandedByChunk( chunk:Chunk ):Cuboid? {
     val world = chunk.world.name
     val baseX = chunk.x
     val baseZ = chunk.z
     var chunkNeighbour:Cuboid? = null
+    var expandableCuboid:Cuboid? = null
 
     for ( x in -1..1 ) for ( z in -1..1 ) if ( x != 0 || z != 0 ) {
       val neighbour = getCuboidChunk( baseX + x, baseZ + z, world ) ?: continue
       val cuboidOnChunk = getCuboid( neighbour.cuboidId )!!
 
       if ( chunkNeighbour != null && neighbour.cuboidId != chunkNeighbour.id ) return null
-      if ( (x == 0) xor (z == 0) ) chunkNeighbour = cuboidOnChunk
+
+      chunkNeighbour = cuboidOnChunk
+
+      if ( (x == 0) xor (z == 0) ) expandableCuboid = cuboidOnChunk
     }
 
-    return chunkNeighbour
+    return expandableCuboid
   }
   fun getNextCuboidChunkCost( player:Player ):CuboidChunkCost? {
     val cuboid = getCuboid( player ) ?: return null
@@ -849,10 +968,9 @@ class Plugin: JavaPlugin(), Listener {
       }
     }
 
-    val cuboid = cuboids.remove( id ) ?: return true
+    cuboids.remove( id )
 
-    for ( (x, y, z, world) in actionBlocks.filter { it.cuboidId == cuboid.id } )
-      doUpdatingQuery( "DELETE FROM action_blocks WHERE x=$x and y=$y and z=$z and world='$world'" )
+    doUpdatingQuery( "DELETE FROM action_blocks WHERE data=$id" )
 
     return true
   }

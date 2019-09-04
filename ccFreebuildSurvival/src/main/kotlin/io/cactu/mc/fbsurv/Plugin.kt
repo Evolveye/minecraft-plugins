@@ -302,7 +302,7 @@ class Plugin: JavaPlugin(), Listener {
   public fun onInteract( e:PlayerInteractEvent ) {
     val block = e.clickedBlock ?: return
 
-    if ( e.action == Action.RIGHT_CLICK_BLOCK && block.type == Material.DISPENSER ) {
+    if ( e.action == Action.RIGHT_CLICK_BLOCK && block.type == Material.DISPENSER && !e.player.isSneaking() ) {
       val player = e.player
       val location = block.location
       val intX = location.x.toInt()
