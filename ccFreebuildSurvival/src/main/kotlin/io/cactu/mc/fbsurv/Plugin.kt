@@ -209,7 +209,6 @@ class Plugin: JavaPlugin(), Listener {
   public fun onBlockBreak( e:BlockBreakEvent ) {
     val player = e.player
 
-    // if ( player.world.name != "world_heaven" ) return
     if ( player.gameMode == GameMode.CREATIVE ) return
 
     val block = e.block
@@ -231,36 +230,20 @@ class Plugin: JavaPlugin(), Listener {
       else if ( typeStr.contains( "ACACIA" ) )   world.dropItem( location, ItemStack( Material.ACACIA_PLANKS,   planksCount ) )
       else e.setDropItems( true )
     }
-    else if ( itemInMainHand.type == Material.IRON_PICKAXE ) {
-      when ( block.type ) {
-        Material.REDSTONE_ORE,
-        Material.LAPIS_ORE,
-        Material.DIAMOND_ORE,
-        Material.EMERALD_ORE -> {
-          createChatInfo( "Ups. &1Ten surowiec mozesz wydobyć z pomocą TNT lub lepszym kilofem", player)
-          e.setDropItems( false )
-        }
+    else if ( block.type == Material.IRON_ORE && block.getRelative( BlockFace.DOWN ).type == Material.CAMPFIRE ) {
+      when ( itemInMainHand.type ) {
+        Material.STONE_PICKAXE,
+        Material.IRON_PICKAXE,
+        Material.DIAMOND_PICKAXE -> block.world.dropItem( location, ItemStack( Material.IRON_INGOT, 1 ) )
 
         else -> {}
       }
     }
-    else if ( itemInMainHand.type == Material.STONE_PICKAXE ) {
-      if ( block.type == Material.IRON_ORE ) {
-        createChatInfo( "Ups. &1Ten surowiec mozesz wydobyć z pomocą TNT lub lepszym kilofem", player)
-        e.setDropItems( false )
-      }
-    }
-    else if ( itemInMainHand.type == Material.WOODEN_PICKAXE ) {
-      if ( typeStr.contains( "STONE" ) && block.type != Material.COBBLESTONE ) {
-        createChatInfo( "Kopanie kamienia drewnem nie nalezy do mądrych pomysłów", player)
-        e.setDropItems( false )
-      }
-    }
-    else if ( itemInMainHand.type == Material.COAL || itemInMainHand.type == Material.CHARCOAL ) {
-      if ( block.type == Material.IRON_ORE && block.getRelative( BlockFace.DOWN ).type == Material.CAMPFIRE ) {
-        block.world.dropItem( location, ItemStack( Material.IRON_INGOT, 1 ) )
-      }
-    }
+    // else if ( itemInMainHand.type == Material.COAL || itemInMainHand.type == Material.CHARCOAL ) {
+    //   if ( block.type == Material.IRON_ORE && block.getRelative( BlockFace.DOWN ).type == Material.CAMPFIRE ) {
+    //     block.world.dropItem( location, ItemStack( Material.IRON_INGOT, 1 ) )
+    //   }
+    // }
     else if ( itemInMainHand.type == Material.FLINT ) {
       if ( block.type == Material.IRON_ORE && block.getRelative( BlockFace.UP ).type == Material.LAVA ) {
         val flintAndSteel = ItemStack( Material.FLINT_AND_STEEL, 1 )
@@ -272,6 +255,33 @@ class Plugin: JavaPlugin(), Listener {
 
         player.inventory.removeItem( ItemStack( Material.FLINT, 1 ) )
         player.inventory.addItem( flintAndSteel )
+      }
+    }
+    else if ( player.world.name == "world_heaven" ) {
+      if ( itemInMainHand.type == Material.IRON_PICKAXE ) {
+        when ( block.type ) {
+          Material.REDSTONE_ORE,
+          Material.LAPIS_ORE,
+          Material.DIAMOND_ORE,
+          Material.EMERALD_ORE -> {
+            createChatInfo( "Zdecydowanie za twarde. &1Wydobędziesz ten surowiec za pomocą TNT lub lepszym kilofem", player)
+            e.setDropItems( false )
+          }
+
+          else -> {}
+        }
+      }
+      else if ( itemInMainHand.type == Material.STONE_PICKAXE ) {
+        if ( block.type == Material.IRON_ORE ) {
+          createChatInfo( "Zdecydowanie za twarde. &1Wydobędziesz ten surowiec za pomocą TNT lub lepszym kilofem", player)
+          e.setDropItems( false )
+        }
+      }
+      else if ( itemInMainHand.type == Material.WOODEN_PICKAXE ) {
+        if ( typeStr.contains( "STONE" ) && block.type != Material.COBBLESTONE ) {
+          createChatInfo( "Tutejszy kamień jest twardszy niż ten na ziemi. Drewnem go nie wykopiesz", player)
+          e.setDropItems( false )
+        }
       }
     }
   }
