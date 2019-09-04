@@ -11,6 +11,10 @@ import io.cactu.mc.players.playerName
 
 import java.sql.ResultSet
 import java.util.UUID
+import java.util.Timer
+// import java.util.TimerTask
+
+import kotlin.concurrent.schedule
 
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.Chunk
@@ -93,6 +97,7 @@ class Plugin: JavaPlugin(), Listener {
   // val activeCuboidsChunks = mutableSetOf<CuboidChunk>()
   val actionBlocks = mutableSetOf<ActionBlock>()
   val cuboids = mutableMapOf<Int,Cuboid>()
+  val invites = mutableSetOf<Pair<String,String>>()
 
   override fun onEnable() {
     server.pluginManager.registerEvents( this, this )
@@ -293,7 +298,19 @@ class Plugin: JavaPlugin(), Listener {
         }
         else createChatError( "Zaby zmienić nazwę cuboidu porzebujesz książki ze zmienioną nazwą!", sender )
       }
-      else createChatError( "Zaby zmienić nazwę cuboidu musisz się znajdować na jego terenie!", sender )
+      else createChatError( "Żeby zmienić nazwę cuboidu musisz się znajdować na jego terenie!", sender )
+    }
+    else if ( args[ 0 ] == "accept" && sender is Player ) {
+      if ( args.size > 1 ) {
+        val invite = invites.find { it.first == args[ 1 ] && sender.uniqueId.toString() == it.second }
+
+        if ( invite != null ) {
+          invites.remove( invite )
+          addPlayerToCuboid( getCuboid( invite.first.replace( '_', ' ' ) )!!, sender )
+        }
+        else createChatError( "Nie posiadasz zaproszenia do tego regionu!", sender )
+      }
+      else createChatError( "Nie podałeś nazwy regionu od którego chcesz przyjać zaproszenie!", sender )
     }
     else if ( args[ 0 ] == "remove" && (sender !is Player || sender.isOp())  ) {
       if ( args.size == 1 ) createChatError( "Nie podałeś nazwy regionu do usunięcia!", sender )
@@ -452,9 +469,26 @@ class Plugin: JavaPlugin(), Listener {
   @EventHandler
   public fun onDamage( e:EntityDamageByEntityEvent ) {
     val damager = e.damager
+    val entity = e.entity
 
     if ( damager !is Player ) return
-    if ( !canPlayerInfere( e.entity.location.chunk, damager ) ) {
+    if ( entity is Player && damager.inventory.itemInMainHand.type == Material.LANTERN ) {
+      e.setCancelled( true )
+
+      val cuboidName = getCuboid( damager )?.name ?: return
+      val cuboidNameWithoutSpaces = cuboidName.replace( ' ', '_' )
+      val invite = Pair( cuboidNameWithoutSpaces, entity.uniqueId.toString() )
+
+      invites.add( invite )
+
+      Timer().schedule( 1000 * 60 * 5 ) { invites.remove( invite ) }
+
+      createModuledChatMessage( "&3Zostałeś zaproszony do regionu &1$cuboidName" )
+        .addNextText( "Przyjmij" )
+        .clickCommand( "/cuboids accept $cuboidNameWithoutSpaces" )
+        .sendTo( entity )
+    }
+    else if ( !canPlayerInfere( entity.location.chunk, damager ) ) {
       createChatError( messages.youCannotInfereHere, damager )
       e.setCancelled( true )
     }
@@ -541,6 +575,11 @@ class Plugin: JavaPlugin(), Listener {
     return if ( getCuboidChunk( chunk.x, chunk.z, chunk.world.name ) == null ) false else true
   }
 
+  fun addPlayerToCuboid( cuboid:Cuboid, player:Player ) {
+    doUpdatingQuery(
+      "INSERT INTO cuboids_members (UUID, cuboidId, owner, manager) VALUES ('${player.uniqueId}', ${cuboid.id}, false, false)"
+    )
+  }
   fun havePlayerCuboidInitializer( player:Player ):String {
     val inventory = player.inventory
     var initializerName = ""
