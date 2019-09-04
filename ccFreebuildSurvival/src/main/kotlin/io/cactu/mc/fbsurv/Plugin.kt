@@ -59,7 +59,9 @@ class Plugin: JavaPlugin(), Listener {
     while ( recipesIterator.hasNext() ) {
       val recipe = recipesIterator.next()
 
-      if ( recipe is FurnaceRecipe ) when ( recipe.result.type ) {
+      if ( recipe is FurnaceRecipe || recipe.result == ItemStack( Material.ENDER_CHEST ) ) when ( recipe.result.type ) {
+        Material.ENDER_CHEST,
+
         Material.COOKED_BEEF,
         Material.COOKED_CHICKEN,
         Material.COOKED_COD,
