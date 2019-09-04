@@ -20,10 +20,10 @@ fun playerPermissions( uuid:String ) = players.get( uuid )?.permissionsLevel
 
 data class PlayerData(
   val UUID:String,
-  val displayName:String,
-  val timeOnServer:Int,
-  val difficulty:Int,
-  val permissionsLevel:Int
+  var displayName:String,
+  var timeOnServer:Long,
+  var difficulty:Int,
+  var permissionsLevel:Int
 )
 
 class Plugin: JavaPlugin(), Listener {
@@ -39,7 +39,7 @@ class Plugin: JavaPlugin(), Listener {
       players.set( uuid, PlayerData(
         uuid,
         playersSQL.getString( "displayName" ),
-        playersSQL.getInt( "timeOnServer" ),
+        playersSQL.getLong( "timeOnServer" ),
         playersSQL.getInt( "difficulty" ),
         playersSQL.getInt( "permissionsLevel" )
       ) )
@@ -62,12 +62,17 @@ class Plugin: JavaPlugin(), Listener {
       doUpdatingQuery( "INSERT INTO players VALUES ('$uuid', '$displayName', 0, 0, 0)" )
     }
 
-    playersTimes.set( uuid, System.currentTimeMillis() )
+    playersTimes.set( uuid, System.currentTimeMillis() - players.get( uuid )!!.timeOnServer )
   }
   @EventHandler
-  public fun onPlayerQuit( e:PlayerQuitEvent ) = updatePlayerTime( e.player.uniqueId.toString() )
+  public fun onPlayerQuit( e:PlayerQuitEvent ) {
+    updatePlayerTime( e.player.uniqueId.toString() )
+  }
 
   fun updatePlayerTime( uuid:String ) {
-    doUpdatingQuery( "UPDATE players SET timeOnServer=${System.currentTimeMillis() - playersTimes.get( uuid )!!}" )
+    val newTime = System.currentTimeMillis() - playersTimes.get( uuid )!!
+
+    players.get( uuid )!!.timeOnServer = newTime
+    doUpdatingQuery( "UPDATE players SET timeOnServer=$newTime" )
   }
 }
