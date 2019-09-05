@@ -4,8 +4,3 @@ version: 0.7
 
 api-version: 1.14
 depend: [ KotlinRuntime, DbUtils, ccChat ]
-
-commands:
-  toggleWorld:
-    description: Wejdź/wyjdź do/z nieba
-    usage: /<command>

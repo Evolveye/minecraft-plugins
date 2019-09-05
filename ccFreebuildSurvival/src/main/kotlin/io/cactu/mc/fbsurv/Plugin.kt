@@ -28,6 +28,7 @@ import org.bukkit.event.entity.EntityDeathEvent
 import org.bukkit.event.entity.EntitySpawnEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerChangedWorldEvent
+import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.event.world.ChunkLoadEvent
 import org.bukkit.GameMode
 import org.bukkit.Material
@@ -135,20 +136,6 @@ class Plugin: JavaPlugin(), Listener {
 
     setPostuments()
   }
-  override fun onCommand( sender:CommandSender, command:Command, label:String, args:Array<String> ):Boolean {
-    if ( sender !is Player ) return false
-
-    val player:Player = sender
-    val worldname = player.location.world?.name ?: return false
-
-    val world =
-      if ( worldname == "world" ) Location( server.getWorld( "world_heaven" )!!, 100.5, 58.0, -15.5 )
-      else Location( server.getWorld( "world" )!!, -34.5, 71.0, -573.5 )
-
-    player.teleport( world )
-
-    return true
-  }
 
   fun setPostuments() {
     postuments.set( "elytra_launcher", Postument( "elytra_launcher", 3, 6,
@@ -216,7 +203,7 @@ class Plugin: JavaPlugin(), Listener {
         }
 
         player.addPotionEffects( mutableSetOf(
-          PotionEffect( PotionEffectType.LEVITATION, 80, 50, false, false, false )
+          PotionEffect( PotionEffectType.LEVITATION, 20 * 4, 50, false, false, false )
         ) )
 
         return true
@@ -258,6 +245,27 @@ class Plugin: JavaPlugin(), Listener {
 
         if ( block.type == Material.DIAMOND_ORE ) block.setType( Material.EMERALD_ORE )
       }
+    }
+  }
+  @EventHandler
+  public fun onPlayerMove( e:PlayerMoveEvent ) {
+    val location = e.to ?: return
+    val world = location.world ?: return
+    val player = e.player
+
+    if ( location.y > 300 && world.name == "world" ) {
+      val heaven = server.getWorld( "world_heaven" )!!
+      val x = location.x / 8
+      val z = location.z / 8
+
+      player.teleport( Location( heaven, x, -20.0, z ) )
+    }
+    else if ( location.y < -55 && world.name == "world_heaven" ) {
+      val earth = server.getWorld( "world" )!!
+      val x = location.x * 8
+      val z = location.z * 8
+
+      player.teleport( Location( earth, x, 300.0, z) )
     }
   }
   @EventHandler
