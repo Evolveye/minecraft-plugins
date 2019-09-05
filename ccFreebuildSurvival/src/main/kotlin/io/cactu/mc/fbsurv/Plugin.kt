@@ -273,7 +273,10 @@ class Plugin: JavaPlugin(), Listener {
       when ( itemInMainHand.type ) {
         Material.STONE_PICKAXE,
         Material.IRON_PICKAXE,
-        Material.DIAMOND_PICKAXE -> block.world.dropItem( location, ItemStack( Material.IRON_INGOT, 1 ) )
+        Material.DIAMOND_PICKAXE -> {
+          block.world.dropItem( location, ItemStack( Material.IRON_INGOT, 1 ) )
+          e.setDropItems( false )
+        }
 
         else -> {}
       }
