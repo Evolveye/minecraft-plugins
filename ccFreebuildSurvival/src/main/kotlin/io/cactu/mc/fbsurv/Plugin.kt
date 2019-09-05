@@ -4,6 +4,11 @@ import io.cactu.mc.doQuery
 import io.cactu.mc.doUpdatingQuery
 import io.cactu.mc.chat.createChatInfo
 import io.cactu.mc.chat.createChatError
+
+import java.util.Timer
+
+import kotlin.concurrent.scheduleAtFixedRate
+
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
@@ -115,6 +120,19 @@ class Plugin: JavaPlugin(), Listener {
       actionBlocksSQL.getString( "type" )
     ) )
 
+    server.scheduler.runTaskTimer( this, { _ -> server.onlinePlayers.forEach {
+      val worldname = it.world.name
+      val inventory = it.inventory
+
+      if ( worldname == "world_heaven" ) {
+        if ( !inventory.contains( Material.DRAGON_BREATH ) ) it.damage( 0.5 )
+      }
+      else if ( worldname == "world_nether" ) {
+        if ( inventory.helmet != null || inventory.chestplate != null || inventory.leggings != null || inventory.boots != null )
+          it.damage( 0.5 )
+      }
+    } }, 20, 20 )
+
     setPostuments()
   }
   override fun onCommand( sender:CommandSender, command:Command, label:String, args:Array<String> ):Boolean {
@@ -207,10 +225,22 @@ class Plugin: JavaPlugin(), Listener {
   }
 
   @EventHandler
-  public fun onEntitySpawn( e:PlayerChangedWorldEvent ) {
-    if ( e.player.world.name == "world-the_end" && !endOpened ) {
+  public fun onChangeWorld( e:PlayerChangedWorldEvent ) {
+    val player = e.player
+    val world = player.world
+    val inventory = player.inventory
+
+    if ( world.name == "world_the_end" && !endOpened ) {
       doUpdatingQuery( "UPDATE server_variables SET boolean=false WHERE name='endOpened'" )
       endOpened = true
+    }
+    else if ( world.name == "world_heaven" ) {
+      if ( !inventory.contains( Material.DRAGON_BREATH ) )
+        createChatInfo( '!', "&1Bez oddechu smoka tutaj nie przetrwasz! &D7Tutejsze powietrze nie nadaje się do oddychania", player )
+    }
+    else if ( world.name == "world_nether" ) {
+      if ( inventory.helmet != null || inventory.chestplate != null || inventory.leggings != null || inventory.boots != null )
+        createChatInfo( '!', "&1Zbroja w gorącym netherze!? &D7 Tu jest tak gorąco, że jakikolwiek element ubioru zabija ze spiekoty", player )
     }
   }
   @EventHandler
