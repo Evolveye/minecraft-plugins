@@ -20,6 +20,7 @@ import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.entity.EntityExplodeEvent
 import org.bukkit.event.entity.EntityDeathEvent
 import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.event.world.ChunkLoadEvent
 import org.bukkit.GameMode
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
@@ -193,6 +194,18 @@ class Plugin: JavaPlugin(), Listener {
     ) )
   }
 
+  @EventHandler
+  public fun onChunkLoad( e:ChunkLoadEvent ) {
+    if ( e.isNewChunk && e.world.name == "world" ) {
+      val chunk = e.chunk
+
+      for ( x in 0..15 ) for ( y in 0..30 ) for ( z in 0..15 ) {
+        val block = chunk.getBlock( x, y, z )
+
+        if ( block.type == Material.DIAMOND_ORE ) block.setType( Material.EMERALD_ORE )
+      }
+    }
+  }
   @EventHandler
   public fun onEntityExplode( e:EntityExplodeEvent ) {
     val worldName = e.entity.world.name

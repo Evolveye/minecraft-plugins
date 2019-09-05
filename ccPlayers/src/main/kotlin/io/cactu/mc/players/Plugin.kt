@@ -73,6 +73,7 @@ class Plugin: JavaPlugin(), Listener {
     val newTime = System.currentTimeMillis() - playersTimes.get( uuid )!!
 
     players.get( uuid )!!.timeOnServer = newTime
+
     doUpdatingQuery( "UPDATE players SET timeOnServer=$newTime WHERE UUID='$uuid'" )
   }
 }
