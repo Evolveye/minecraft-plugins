@@ -1,6 +1,7 @@
 package io.cactu.mc.fbsurv
 
 import io.cactu.mc.doQuery
+import io.cactu.mc.doUpdatingQuery
 import io.cactu.mc.chat.createChatInfo
 import io.cactu.mc.chat.createChatError
 import org.bukkit.plugin.java.JavaPlugin
@@ -19,7 +20,9 @@ import org.bukkit.event.block.Action
 import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.entity.EntityExplodeEvent
 import org.bukkit.event.entity.EntityDeathEvent
+import org.bukkit.event.entity.EntitySpawnEvent
 import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.event.player.PlayerChangedWorldEvent
 import org.bukkit.event.world.ChunkLoadEvent
 import org.bukkit.GameMode
 import org.bukkit.Material
@@ -29,6 +32,7 @@ import org.bukkit.inventory.FurnaceRecipe
 import org.bukkit.inventory.BlastingRecipe
 import org.bukkit.inventory.meta.Damageable
 import org.bukkit.inventory.meta.ItemMeta
+import org.bukkit.Difficulty
 import org.bukkit.Location
 import org.bukkit.WorldCreator
 
@@ -49,10 +53,18 @@ class Plugin: JavaPlugin(), Listener {
   val minCountOfGunpowderFromCreeper = 1
   val actionBlocks = mutableSetOf<ActionBlock>()
   val postuments = mutableMapOf<String,Postument>()
+  var endOpened = false
 
   override fun onEnable() {
     server.pluginManager.registerEvents( this, this )
     server.createWorld( WorldCreator( "world_heaven" ) )
+    server.getWorld( "world_heaven" )!!.difficulty = Difficulty.HARD
+
+    val serverVarsSQL = doQuery( "SELECT * FROM server_variables WHERE name='endOpened'" )
+
+    while ( serverVarsSQL.next() ) when ( serverVarsSQL.getString( "name" ) ) {
+      "endOpened" -> endOpened = serverVarsSQL.getBoolean( "boolean" )
+    }
 
     val recipes = mutableSetOf<Recipe>()
     val recipesIterator = server.recipeIterator()
@@ -194,6 +206,18 @@ class Plugin: JavaPlugin(), Listener {
     ) )
   }
 
+  @EventHandler
+  public fun onEntitySpawn( e:PlayerChangedWorldEvent ) {
+    if ( e.player.world.name == "world-the_end" && !endOpened ) {
+      doUpdatingQuery( "UPDATE server_variables SET boolean=false WHERE name='endOpened'" )
+      endOpened = true
+    }
+  }
+  @EventHandler
+  public fun onEntitySpawn( e:EntitySpawnEvent ) {
+    if ( e.entityType == EntityType.PHANTOM && e.entity.world.name == "world" ) e.setCancelled( true )
+    else if ( e.entityType == EntityType.ENDERMAN && !endOpened ) e.setCancelled( false )
+  }
   @EventHandler
   public fun onChunkLoad( e:ChunkLoadEvent ) {
     if ( e.isNewChunk && e.world.name == "world" ) {
