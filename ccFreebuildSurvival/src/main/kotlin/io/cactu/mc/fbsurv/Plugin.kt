@@ -19,6 +19,7 @@ import org.bukkit.block.BlockFace
 import org.bukkit.block.data.Directional
 import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
+import org.bukkit.entity.Monster
 import org.bukkit.event.Listener
 import org.bukkit.event.EventHandler
 import org.bukkit.event.block.Action
@@ -26,6 +27,7 @@ import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.entity.EntityExplodeEvent
 import org.bukkit.event.entity.EntityDeathEvent
 import org.bukkit.event.entity.EntitySpawnEvent
+import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.player.PlayerInteractEntityEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerChangedWorldEvent
@@ -35,12 +37,14 @@ import org.bukkit.GameMode
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.Recipe
+import org.bukkit.inventory.ShapedRecipe
 import org.bukkit.inventory.FurnaceRecipe
 import org.bukkit.inventory.BlastingRecipe
 import org.bukkit.inventory.meta.Damageable
 import org.bukkit.inventory.meta.ItemMeta
 import org.bukkit.Difficulty
 import org.bukkit.Location
+import org.bukkit.NamespacedKey
 import org.bukkit.WorldCreator
 
 data class ActionBlock( val x:Int, val y:Int, val z:Int, val world:String, val type:String )
@@ -66,6 +70,7 @@ class Plugin: JavaPlugin(), Listener {
     server.pluginManager.registerEvents( this, this )
     server.createWorld( WorldCreator( "world_heaven" ) )
     server.getWorld( "world_heaven" )!!.difficulty = Difficulty.HARD
+    server.getWorld( "world_nether" )!!.difficulty = Difficulty.HARD
 
     val serverVarsSQL = doQuery( "SELECT * FROM server_variables WHERE name='endOpened'" )
 
@@ -108,6 +113,10 @@ class Plugin: JavaPlugin(), Listener {
       }
       else recipes.add( recipe )
     }
+    recipes.add( ShapedRecipe( NamespacedKey( this, "CACTU" ), ItemStack( Material.COAL_BLOCK ) )
+      .shape( "ccc", "ccc", "ccc" )
+      .setIngredient( 'c', Material.CHARCOAL )
+    )
 
     server.clearRecipes()
     recipes.forEach { server.addRecipe( it ) }
@@ -233,8 +242,16 @@ class Plugin: JavaPlugin(), Listener {
   }
   @EventHandler
   public fun onEntitySpawn( e:EntitySpawnEvent ) {
-    if ( e.entityType == EntityType.PHANTOM && e.entity.world.name == "world" ) e.setCancelled( true )
-    else if ( e.entityType == EntityType.ENDERMAN && !endOpened ) e.setCancelled( false )
+    val type = e.entityType
+    val entity = e.entity
+
+    if ( type == EntityType.PHANTOM && entity.world.name == "world" ) e.setCancelled( true )
+    else if ( type == EntityType.ENDERMAN && !endOpened ) e.setCancelled( false )
+    else if ( entity.world.name == "world_nether" && entity is Monster ) {
+      entity.addPotionEffects( mutableSetOf(
+        PotionEffect( PotionEffectType.INCREASE_DAMAGE, 20 * 60 * 60 * 24, 1, false, false, false )
+      ) )
+    }
   }
   @EventHandler
   public fun onChunkLoad( e:ChunkLoadEvent ) {
@@ -414,6 +431,13 @@ class Plugin: JavaPlugin(), Listener {
       createChatInfo( "Akcja tymczasowo niemożliwa", e.player )
       e.setCancelled( true )
     }
+  }
+  @EventHandler
+  public fun onDamage( e:EntityDamageEvent ) {
+    val cause = e.cause
+    val entity = e.entity
+
+    if ( cause == EntityDamageEvent.DamageCause.FIRE && entity.world.name == "world_nether" ) entity.fireTicks = 6666
   }
 
   fun random( min:Int, max:Int ):Int {
