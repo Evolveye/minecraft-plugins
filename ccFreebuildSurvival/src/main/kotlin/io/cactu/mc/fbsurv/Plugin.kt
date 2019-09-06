@@ -26,6 +26,7 @@ import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.entity.EntityExplodeEvent
 import org.bukkit.event.entity.EntityDeathEvent
 import org.bukkit.event.entity.EntitySpawnEvent
+import org.bukkit.event.player.PlayerInteractEntityEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerChangedWorldEvent
 import org.bukkit.event.player.PlayerMoveEvent
@@ -377,7 +378,7 @@ class Plugin: JavaPlugin(), Listener {
     }
   }
   @EventHandler
-  public fun onInteract( e:PlayerInteractEvent ) {
+  public fun onPlayerInteract( e:PlayerInteractEvent ) {
     val block = e.clickedBlock ?: return
 
     if ( e.action == Action.RIGHT_CLICK_BLOCK && block.type == Material.DISPENSER && !e.player.isSneaking() ) {
@@ -403,6 +404,15 @@ class Plugin: JavaPlugin(), Listener {
         }
 
       if ( !postument.additionalTests( player, block ) ) return
+    }
+  }
+  @EventHandler
+  public fun onPlayerEntityInteract( e:PlayerInteractEntityEvent ) {
+    val entity = e.rightClicked
+
+    if ( entity.type == EntityType.VILLAGER ) {
+      createChatInfo( "Akcja tymczasowo niemożliwa", e.player )
+      e.setCancelled( true )
     }
   }
 
