@@ -29,7 +29,6 @@ data class PlayerData(
 class Plugin: JavaPlugin(), Listener {
 
   override fun onEnable() {
-    logger.info( "Plugin enabled" )
     server.pluginManager.registerEvents( this, this )
 
     val playersSQL = doQuery( "SELECT * FROM players" )

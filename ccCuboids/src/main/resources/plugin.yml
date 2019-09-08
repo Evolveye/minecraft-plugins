@@ -1,6 +1,6 @@
 main: io.cactu.mc.cuboids.Plugin
 name: ccCuboids
-version: 0.1
+version: 0.5
 
 api-version: 1.14
 depend: [ KotlinRuntime, DbUtils, ccChat ]

@@ -1,7 +1,8 @@
 main: io.cactu.mc.chat.Plugin
 name: ccChat
-version: 0.7
+version: 0.5
 
+api-version: 1.14
 depend: [ KotlinRuntime ]
 
 commands:

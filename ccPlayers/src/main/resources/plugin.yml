@@ -1,5 +1,6 @@
 main: io.cactu.mc.players.Plugin
 name: ccPlayers
-version: 0.7
+version: 0.5
 
+api-version: 1.14
 depend: [ KotlinRuntime, DbUtils ]

@@ -1,5 +1,6 @@
 main: io.cactu.mc.DbUtils
 name: DbUtils
-version: 0.7
+version: 1.0
 
+api-version: 1.14
 depend: [ KotlinRuntime ]
