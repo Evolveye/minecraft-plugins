@@ -1,17 +1,4 @@
-main: io.cactu.mc.chat.Plugin
 name: ccChat
-version: 0.5
-
-api-version: 1.14
-depend: [ KotlinRuntime ]
-
-commands:
-  m:
-    description: Wyślij prywatną wiadomosć
-    usage: /<command> <gracz> <...treść>
-  "?":
-    description: Pomoc
-  help:
-    description: Pomoc
-  pomoc:
-    description: Pomoc
+version: '${project.version}'
+main: cc.cactu.minecraft.ccchat.CcChat
+api-version: "1.20"

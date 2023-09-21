@@ -1,6 +1,0 @@
-main: io.cactu.mc.fbsurv.Plugin
-name: ccFreebuildSurvival
-version: 0.5
-
-api-version: 1.14
-depend: [ KotlinRuntime, DbUtils, ccChat ]

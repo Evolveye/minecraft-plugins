@@ -1,0 +1,4 @@
+name: ccRails
+version: '${project.version}'
+main: cc.cactu.minecraft.ccrails.CcRails
+api-version: "1.20"

@@ -1,0 +1,4 @@
+name: ccBase
+version: '${project.version}'
+main: cc.cactu.minecraft.ccbase.CcBase
+api-version: "1.20"

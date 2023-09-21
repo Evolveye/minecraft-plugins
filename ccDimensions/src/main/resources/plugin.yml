@@ -1,0 +1,6 @@
+name: ccDimensions
+version: '${project.version}'
+main: cc.cactu.minecraft.ccdimensions.CcDimensions
+api-version: '1.20'
+depend:
+  - ccSpawn

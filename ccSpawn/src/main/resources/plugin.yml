@@ -1,0 +1,4 @@
+name: ccSpawn
+version: '${project.version}'
+main: cc.cactu.minecraft.ccspawn.CcSpawn
+api-version: "1.20"
