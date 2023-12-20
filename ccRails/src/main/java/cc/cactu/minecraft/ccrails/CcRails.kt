@@ -2,12 +2,15 @@ package cc.cactu.minecraft.ccrails
 
 import org.bukkit.Location
 import org.bukkit.Material
+import org.bukkit.block.Block
 import org.bukkit.block.BlockFace
 import org.bukkit.block.data.Rail
 import org.bukkit.configuration.ConfigurationSection
 import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.configuration.serialization.ConfigurationSerialization
 import org.bukkit.entity.Minecart
+import org.bukkit.entity.Player
+import org.bukkit.entity.Vehicle
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.vehicle.VehicleEntityCollisionEvent
@@ -75,7 +78,7 @@ class CcRails : JavaPlugin(), Listener {
         }
 
 //        logger.info( "location = ${location.x} ${location.y} ${location.z}" )
-        logger.info( "crossroad = ${crossroad} ${}" )
+        logger.info( "crossroad = ${crossroad}" )
 //
 //        for ((index, obj) in crossroads.withIndex()) {
 //            val objSection = crossroads.createSection( index.toString() )
@@ -86,6 +89,80 @@ class CcRails : JavaPlugin(), Listener {
 //        return crossroads
     }
 
+    fun turn( rail:Block, vehicle:Vehicle ) {
+        val velocity = vehicle.velocity
+        val player = vehicle.passengers.firstOrNull() ?: return
+
+        if (player !is Player) return
+
+        val nextBlock = getRelativeToRailByVelocity( rail, velocity )
+        val turnBlock = getRelativeToRailByVelocity( nextBlock, velocity )
+        val turn = getRailBlockData( turnBlock ) ?: return
+
+        if (!listOf( Rail.Shape.NORTH_EAST, Rail.Shape.NORTH_WEST, Rail.Shape.SOUTH_WEST, Rail.Shape.SOUTH_EAST, Rail.Shape.NORTH_SOUTH, Rail.Shape.EAST_WEST ).contains( turn.shape )) return
+
+        val turnRight = player.inventory.itemInMainHand.type == Material.OAK_SIGN
+        val turnLeft = !turnRight && player.inventory.itemInOffHand.type == Material.OAK_SIGN
+        val diff = velocity.x.absoluteValue - velocity.z.absoluteValue
+
+        fun setTurnShape( destinationShape:Rail.Shape, x:Int, z:Int, availableRailShapes:List<Rail.Shape> ): Boolean? {
+            val afterTurn = getRailBlockData( turnBlock.getRelative( x, 0, z ) ) ?: return null
+            if (!availableRailShapes.contains( afterTurn.shape )) return null
+
+            if (turn.shape != destinationShape) turn.shape = destinationShape
+
+            return true
+        }
+
+        if (diff > 0) {
+            if (velocity.x > 0) {
+                if (turnRight) {
+                    val result = setTurnShape( Rail.Shape.SOUTH_WEST, 0, 1, listOf( Rail.Shape.NORTH_EAST, Rail.Shape.NORTH_WEST, Rail.Shape.NORTH_SOUTH ) )
+                    if (result == null) setTurnShape( Rail.Shape.EAST_WEST, 1, 0, listOf( Rail.Shape.NORTH_WEST, Rail.Shape.SOUTH_WEST, Rail.Shape.EAST_WEST ) ) ?: return
+                } else if (turnLeft) {
+                    val result = setTurnShape( Rail.Shape.NORTH_WEST, 0, -1, listOf( Rail.Shape.SOUTH_EAST, Rail.Shape.SOUTH_WEST, Rail.Shape.NORTH_SOUTH ) )
+                    if (result == null) setTurnShape( Rail.Shape.EAST_WEST, 1, 0, listOf( Rail.Shape.NORTH_WEST, Rail.Shape.SOUTH_WEST, Rail.Shape.EAST_WEST ) ) ?: return
+                } else {
+                    setTurnShape( Rail.Shape.EAST_WEST, 1, 0, listOf( Rail.Shape.NORTH_WEST, Rail.Shape.SOUTH_WEST, Rail.Shape.EAST_WEST ) ) ?: return
+                }
+            } else {
+                if (turnRight) {
+                    val result = setTurnShape( Rail.Shape.NORTH_EAST, 0, -1, listOf( Rail.Shape.SOUTH_EAST, Rail.Shape.SOUTH_WEST, Rail.Shape.NORTH_SOUTH ) )
+                    if (result == null) setTurnShape( Rail.Shape.EAST_WEST, -1, 0, listOf( Rail.Shape.NORTH_EAST, Rail.Shape.SOUTH_EAST, Rail.Shape.EAST_WEST ) ) ?: return
+                } else if (turnLeft) {
+                    val result = setTurnShape( Rail.Shape.SOUTH_EAST, 0, 1, listOf( Rail.Shape.NORTH_EAST, Rail.Shape.NORTH_WEST, Rail.Shape.NORTH_SOUTH ) )
+                    if (result == null) setTurnShape( Rail.Shape.EAST_WEST, -1, 0, listOf( Rail.Shape.NORTH_EAST, Rail.Shape.SOUTH_EAST, Rail.Shape.EAST_WEST ) ) ?: return
+                } else {
+                    setTurnShape( Rail.Shape.EAST_WEST, -1, 0, listOf( Rail.Shape.NORTH_EAST, Rail.Shape.SOUTH_EAST, Rail.Shape.EAST_WEST ) ) ?: return
+                }
+            }
+        } else if (diff < 0) {
+            if (velocity.z > 0) {
+                if (turnRight) {
+                    val result = setTurnShape( Rail.Shape.NORTH_WEST, -1, 0, listOf( Rail.Shape.NORTH_EAST, Rail.Shape.SOUTH_EAST, Rail.Shape.EAST_WEST ) )
+                    if (result == null) setTurnShape( Rail.Shape.NORTH_SOUTH, -1, 0, listOf( Rail.Shape.NORTH_EAST, Rail.Shape.NORTH_WEST, Rail.Shape.NORTH_SOUTH ) ) ?: return
+                } else if (turnLeft) {
+                    val result = setTurnShape( Rail.Shape.NORTH_EAST, 1, 0, listOf( Rail.Shape.NORTH_WEST, Rail.Shape.SOUTH_WEST, Rail.Shape.EAST_WEST ) )
+                    if (result == null) setTurnShape( Rail.Shape.NORTH_SOUTH, -1, 0, listOf( Rail.Shape.NORTH_EAST, Rail.Shape.NORTH_WEST, Rail.Shape.NORTH_SOUTH ) ) ?: return
+                } else {
+                    setTurnShape( Rail.Shape.NORTH_SOUTH, 0, -1, listOf( Rail.Shape.NORTH_EAST, Rail.Shape.NORTH_WEST, Rail.Shape.NORTH_SOUTH ) ) ?: return
+                }
+            } else {
+                if (turnRight) {
+                    val result = setTurnShape( Rail.Shape.SOUTH_WEST, 1, 0, listOf( Rail.Shape.NORTH_WEST, Rail.Shape.SOUTH_WEST, Rail.Shape.EAST_WEST ) )
+                    if (result == null) setTurnShape( Rail.Shape.NORTH_SOUTH, 0, 1, listOf( Rail.Shape.SOUTH_EAST, Rail.Shape.SOUTH_WEST, Rail.Shape.NORTH_SOUTH ) ) ?: return
+                } else if (turnLeft) {
+                    val result = setTurnShape( Rail.Shape.SOUTH_WEST, -1, 0, listOf( Rail.Shape.NORTH_EAST, Rail.Shape.SOUTH_EAST, Rail.Shape.EAST_WEST ) )
+                    if (result == null) setTurnShape( Rail.Shape.NORTH_SOUTH, 0, 1, listOf( Rail.Shape.SOUTH_EAST, Rail.Shape.SOUTH_WEST, Rail.Shape.NORTH_SOUTH ) ) ?: return
+                } else {
+                    setTurnShape( Rail.Shape.NORTH_SOUTH, 0, 1, listOf( Rail.Shape.SOUTH_EAST, Rail.Shape.SOUTH_WEST, Rail.Shape.NORTH_SOUTH ) ) ?: return
+                }
+            }
+        }
+
+        turnBlock.setBlockData( turn, true )
+//        logger.info( "turn.shape=${turn.shape} diff=${diff} left=${turnLeft} right=${turnRight}" )
+    }
     @EventHandler
     fun onVehicleMove(event: VehicleMoveEvent) {
         val vehicle = event.vehicle
@@ -98,21 +175,13 @@ class CcRails : JavaPlugin(), Listener {
 
         if (rail.type == Material.DETECTOR_RAIL) {
             maxSpeed = Math.min( Math.min( straitRoadMaxSpeed, diagonalRoadMaxSpeed ), ascendingRoadMaxSpeed)
-
-            getCrossroadInfo( rail.location )
-//            logger.info( "${getCrossroadInfo( rail.location )}" )
+            turn( rail, vehicle )
         } else {
             maxSpeed = when (railData.shape) {
                 Rail.Shape.NORTH_EAST, Rail.Shape.NORTH_WEST, Rail.Shape.SOUTH_EAST, Rail.Shape.SOUTH_WEST -> diagonalRoadMaxSpeed
                 Rail.Shape.ASCENDING_NORTH, Rail.Shape.ASCENDING_SOUTH, Rail.Shape.ASCENDING_EAST, Rail.Shape.ASCENDING_WEST -> ascendingRoadMaxSpeed
                 else -> {
-                    val vehicleVel = vehicle.velocity
-                    val nextBlock = if (vehicleVel.x.absoluteValue > vehicleVel.z.absoluteValue) {
-                        rail.getRelative( vehicleVel.x.sign.toInt(), 0, 0 )
-                    } else {
-                        rail.getRelative( 0, 0, vehicleVel.z.sign.toInt() )
-                    }
-
+                    val nextBlock = getRelativeToRailByVelocity( rail, vehicle.velocity )
                     val nextRailData = getRailBlockData( nextBlock )
 
                     //                logger.info( "rail.xyz=${stringifylOC( rail.location )} nextBlock.xyz=${stringifylOC( nextBlock.location )} nextBlock.face=${nextRailData?.shape}")

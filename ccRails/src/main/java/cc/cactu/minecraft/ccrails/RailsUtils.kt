@@ -6,6 +6,7 @@ import org.bukkit.block.BlockFace
 import org.bukkit.block.data.Rail
 import org.bukkit.util.Vector
 import kotlin.math.absoluteValue
+import kotlin.math.sign
 
 fun getRailBlockData(rail:Block):Rail? = if (rail.blockData is Rail) rail.blockData as Rail else null
 
@@ -44,4 +45,15 @@ fun getDirection(delta: Vector): BlockFace {
     } else {
         return if (delta.z > 0) BlockFace.SOUTH else BlockFace.NORTH
     }
+}
+
+
+fun getRelativeToRailByVelocity( rail:Block, velocity:Vector ): Block {
+    val nextBlock = if (velocity.x.absoluteValue > velocity.z.absoluteValue) {
+        rail.getRelative( velocity.x.sign.toInt(), 0, 0 )
+    } else {
+        rail.getRelative( 0, 0, velocity.z.sign.toInt() )
+    }
+
+    return nextBlock
 }
