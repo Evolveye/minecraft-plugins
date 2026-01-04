@@ -1,4 +1,6 @@
 name: ccSpawn
 version: '${project.version}'
 main: cc.cactu.minecraft.ccspawn.CcSpawn
-api-version: "1.20"
+api-version: "1.21"
+libraries:
+  - org.jetbrains.kotlin:kotlin-stdlib:2.1.0

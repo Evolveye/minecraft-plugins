@@ -33,7 +33,6 @@ class CcSpawn : JavaPlugin(), Listener {
         Timer().scheduleAtFixedRate( object : TimerTask() {
             override fun run() {
                 spawnData = YamlConfiguration.loadConfiguration( spawnConfig )
-                logger.info( "Spawnpoints synchronized with config file" )
             }
         }, 0, 1000 * 60 * 30 )
     }
@@ -44,12 +43,14 @@ class CcSpawn : JavaPlugin(), Listener {
 
         if (player.hasPlayedBefore()) return
 
-        val randomLocation = getPlayerCustomSpawnLocation( player ) ?: generateRandomLocation( player.world )
+        val world = player.world
+        val randomLocation = getPlayerCustomSpawnLocation( player ) ?: generateRandomLocation( world )
 
         logger.info( "First join, random teleportation" )
         logger.info( "  - From x=${player.location.x} y=${player.location.y} z=${player.location.z}" )
         logger.info( "  - To x=${randomLocation.x} y=${randomLocation.y} y=${randomLocation.z}" )
 
+        spawnData.set( "${player.uniqueId}.nickname", player.name )
         spawnData.set( "${player.uniqueId}.randomSpawn.x", randomLocation.x )
         spawnData.set( "${player.uniqueId}.randomSpawn.y", randomLocation.y )
         spawnData.set( "${player.uniqueId}.randomSpawn.z", randomLocation.z )
@@ -83,17 +84,36 @@ class CcSpawn : JavaPlugin(), Listener {
     }
 
     private fun getPlayerCustomSpawnLocation( player:Player ): Location? {
-        val playerSpawnString: String? = spawnData.getString(player.uniqueId.toString())
+        if (spawnData.getString( player.uniqueId.toString() ) == null) return null
 
-        if (playerSpawnString != null) {
-            return Location(
-                Bukkit.getWorld( "world" ),
-                spawnData.getDouble( "${player.uniqueId}.randomSpawn.x" ),
-                spawnData.getDouble( "${player.uniqueId}.randomSpawn.y" ),
-                spawnData.getDouble( "${player.uniqueId}.randomSpawn.z" )
-            )
+        val world = Bukkit.getWorld( "world" ) ?: return null
+        val location = Location(
+            world,
+            spawnData.getDouble( "${player.uniqueId}.randomSpawn.x" ),
+            spawnData.getDouble( "${player.uniqueId}.randomSpawn.y" ),
+            spawnData.getDouble( "${player.uniqueId}.randomSpawn.z" )
+        )
+
+        val x = location.x.toInt()
+        val y = location.y.toInt()
+        val z = location.z.toInt()
+
+        val block = world.getBlockAt( x, 400, z )
+        logger.info( "${location} ${block}" )
+
+        for (y in y..world.maxHeight) {
+            location.y = y.toDouble()
+
+            val ground = world.getBlockAt( x, y - 1, z )
+            if (ground.type.isEmpty || ground.isLiquid) continue
+
+            val feet = world.getBlockAt( x, y, z )
+            val head = world.getBlockAt( x, y + 1, z )
+
+            if (feet.isEmpty && head.isEmpty) break
         }
-        return null
+
+        return location
     }
 
     private fun generateRandomLocation( world:World ): Location {

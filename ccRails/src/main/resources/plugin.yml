@@ -1,4 +1,8 @@
 name: ccRails
 version: '${project.version}'
 main: cc.cactu.minecraft.ccrails.CcRails
-api-version: "1.20"
+api-version: "1.21"
+paper-weight-mapping-namespace: mojang
+libraries:
+  - org.jetbrains.kotlin:kotlin-stdlib:2.1.0
+remap: false
