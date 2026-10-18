@@ -2,7 +2,9 @@ package cc.cactu.minecraft.ccspawn
 
 import org.bukkit.Bukkit
 import org.bukkit.Location
+import org.bukkit.Material
 import org.bukkit.World
+import org.bukkit.block.Block
 import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
@@ -23,11 +25,11 @@ class CcSpawn : JavaPlugin(), Listener {
         server.pluginManager.registerEvents( this, this )
         logger.info( "Hello ccSpawn" )
 
-        spawnConfig = File( dataFolder, "storage.yml")
+        spawnConfig = File( dataFolder, "storage.yml" )
 
         if (!spawnConfig.exists()) {
             spawnConfig.parentFile.mkdirs()
-            saveResource("storage.yml", false)
+            saveResource( "storage.yml", false )
         }
 
         Timer().scheduleAtFixedRate( object : TimerTask() {
@@ -38,8 +40,12 @@ class CcSpawn : JavaPlugin(), Listener {
     }
 
     @EventHandler
-    fun onJoin( e:PlayerJoinEvent) {
+    fun onJoin( e:PlayerJoinEvent ) {
         val player = e.player
+
+        Bukkit.getScheduler().runTaskLater( this, Runnable {
+            if (player.isOnline) player.compassTarget = Location( player.world, 0.0, 64.0, -10_000_000.0 )
+        }, 10L )
 
         if (player.hasPlayedBefore()) return
 
@@ -47,26 +53,25 @@ class CcSpawn : JavaPlugin(), Listener {
         val randomLocation = getPlayerCustomSpawnLocation( player ) ?: generateRandomLocation( world )
 
         logger.info( "First join, random teleportation" )
-        logger.info( "  - From x=${player.location.x} y=${player.location.y} z=${player.location.z}" )
-        logger.info( "  - To x=${randomLocation.x} y=${randomLocation.y} y=${randomLocation.z}" )
+        logger.info( "  - from orginal spawn x=${player.location.x} y=${player.location.y} z=${player.location.z}" )
+        logger.info( "  - to recreated spawn x=${randomLocation.x} y=${randomLocation.y} y=${randomLocation.z}" )
 
         spawnData.set( "${player.uniqueId}.nickname", player.name )
         spawnData.set( "${player.uniqueId}.randomSpawn.x", randomLocation.x )
         spawnData.set( "${player.uniqueId}.randomSpawn.y", randomLocation.y )
         spawnData.set( "${player.uniqueId}.randomSpawn.z", randomLocation.z )
+        spawnData.save( spawnConfig )
 
-        spawnData.save(spawnConfig)
-
-        player.setBedSpawnLocation( randomLocation )
+        player.setRespawnLocation( randomLocation )
         player.teleport( randomLocation )
     }
 
     @EventHandler
     fun onPlayerRespawn( event:PlayerRespawnEvent ) {
         val player = event.player
-        val bedSpawnLocation = player.bedSpawnLocation
+        val respawnLocation = player.respawnLocation
 
-        if (bedSpawnLocation != null) return
+        if (respawnLocation != null) return
 
         val playerSpawnLocation: Location? = getPlayerCustomSpawnLocation( player )
 
@@ -74,7 +79,7 @@ class CcSpawn : JavaPlugin(), Listener {
     }
 
     fun getPlayerSpawnLocation( player:Player ): Location? {
-        return player.bedSpawnLocation ?: getPlayerCustomSpawnLocation( player )
+        return player.respawnLocation ?: getPlayerCustomSpawnLocation( player )
     }
     fun teleportPlayerToSpawn( player:Player ) {
         val playerSpawn = getPlayerSpawnLocation( player )
@@ -97,26 +102,48 @@ class CcSpawn : JavaPlugin(), Listener {
         val x = location.x.toInt()
         val y = location.y.toInt()
         val z = location.z.toInt()
+        val highestY = world.getHighestBlockYAt( x, z )
 
-        val block = world.getBlockAt( x, 400, z )
-        logger.info( "${location} ${block}" )
+        val decrementingTo = 60
+        var yFound = false
 
-        for (y in y..world.maxHeight) {
+        if (y > decrementingTo) for (y in y downTo decrementingTo) {
             location.y = y.toDouble()
 
             val ground = world.getBlockAt( x, y - 1, z )
-            if (ground.type.isEmpty || ground.isLiquid) continue
+            if (ground.isLiquid) break
+            if (!ground.isSolid) continue
 
-            val feet = world.getBlockAt( x, y, z )
-            val head = world.getBlockAt( x, y + 1, z )
+            val (feet, head) = getPlayerBlocksAr( world, x, y, z )
+            if (feet.type != Material.AIR || head.type != Material.AIR) continue
 
-            if (feet.isEmpty && head.isEmpty) break
+            yFound = true
+            break
         }
 
+        if (!yFound) {
+            val range = if (y < highestY) decrementingTo..highestY+1 else highestY..decrementingTo
+
+            for (y in range) {
+                location.y = y.toDouble()
+
+                val ground = world.getBlockAt( x, y - 1, z )
+                if (!ground.isSolid || ground.isLiquid) continue
+
+                val (feet, head) = getPlayerBlocksAr( world, x, y, z )
+                if (feet.type != Material.AIR || head.type != Material.AIR) continue
+
+                yFound = true
+                break
+            }
+        }
+
+        if (!yFound) error( "Should be unreachable" )
         return location
     }
 
     private fun generateRandomLocation( world:World ): Location {
+        val offlinePlayers = Bukkit.getOfflinePlayers()
         var goodLocation = false
         var x = 0
         var z = 0
@@ -124,14 +151,34 @@ class CcSpawn : JavaPlugin(), Listener {
         var counter = 10
 
         while (!goodLocation && counter > 0) {
-            x = Random.nextInt(10000) - 5000
-            z = Random.nextInt(10000) - 5000
+            x = Random.nextInt( 10000 ) - 5000
+            z = Random.nextInt( 10000 ) - 5000
             y = world.getHighestBlockYAt( x, z )
+            val locBlock = world.getBlockAt( x, y, z )
 
-            goodLocation = !world.getBlockAt( x, y, z ).isLiquid()
+            goodLocation = !locBlock.isLiquid()
+
+            if (goodLocation && counter > 3) {
+                goodLocation = offlinePlayers.all {
+                    var respawnLoc = it.respawnLocation
+
+                    if (respawnLoc == null) {
+                        val player = it.player ?: return@all true
+                        respawnLoc = getPlayerCustomSpawnLocation( player ) ?: return@all true
+                    }
+
+                    respawnLoc.distance( locBlock.location ) >= 700
+                }
+            }
+
             counter--
         }
 
         return Location( world, x.toDouble(), y.toDouble() + 5, z.toDouble() )
     }
+
+    private fun getPlayerBlocksAr( world:World, x:Int, y:Int, z:Int ):Pair<Block, Block> = Pair(
+        world.getBlockAt( x, y, z ),
+        world.getBlockAt( x, y + 1, z )
+    )
 }

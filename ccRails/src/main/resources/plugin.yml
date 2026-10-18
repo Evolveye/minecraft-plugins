@@ -2,7 +2,16 @@ name: ccRails
 version: '${project.version}'
 main: cc.cactu.minecraft.ccrails.CcRails
 api-version: "1.21"
-paper-weight-mapping-namespace: mojang
 libraries:
-  - org.jetbrains.kotlin:kotlin-stdlib:2.1.0
-remap: false
+  - org.jetbrains.kotlin:kotlin-stdlib:${kotlin.version}
+
+commands:
+  ccrails:
+    description: Komenda do zarządzania pluginem ccRails
+    permission: ccrails.admin
+    permission-message: §cTa komenda jest tylko dla administratorów!
+
+permissions:
+  ccrails.admin:
+    description: Pozwala na używanie komend administracyjnych CcRails
+    default: op

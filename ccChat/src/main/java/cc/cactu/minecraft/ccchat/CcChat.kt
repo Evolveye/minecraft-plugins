@@ -45,7 +45,7 @@ class CcChat : JavaPlugin(), Listener {
                     players.add( consoleLabel )
 
                     players.filter {
-                        it.startsWith( args[0], ignoreCase = true )
+                        it.startsWith( args[ 0 ], ignoreCase = true )
                     }
                 }
 

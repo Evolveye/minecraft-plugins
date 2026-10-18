@@ -1,0 +1,6 @@
+name: ccBoats
+version: '${project.version}'
+main: cc.cactu.minecraft.ccBoats.CcBoats
+api-version: "1.21"
+libraries:
+  - org.jetbrains.kotlin:kotlin-stdlib:${kotlin.version}

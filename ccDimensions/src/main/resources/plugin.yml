@@ -2,6 +2,7 @@ name: ccDimensions
 version: '${project.version}'
 main: cc.cactu.minecraft.ccdimensions.CcDimensions
 api-version: '1.21'
-depend: [ ccSpawn ]
+depend:
+  - ccSpawn
 libraries:
-  - org.jetbrains.kotlin:kotlin-stdlib:2.1.0
+  - org.jetbrains.kotlin:kotlin-stdlib:${kotlin.version}

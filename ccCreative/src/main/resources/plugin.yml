@@ -1,0 +1,23 @@
+name: ccCreative
+version: '${project.version}'
+main: cc.cactu.minecraft.ccCreative.CcCreative
+api-version: "1.21"
+libraries:
+  - org.jetbrains.kotlin:kotlin-stdlib:${kotlin.version}
+
+permissions:
+  cccreative.use:
+    description: Pozwala na używanie komendy /creative
+    default: true
+  cccreative.admin:
+    description: Pozwala na używanie komend administracyjnych /cccreative
+    default: op
+
+commands:
+  creative:
+    description: Przełącza gracza między światem survival a creative.
+    permission: cccreative.use
+  cccreative:
+    description: Komendy administracyjne pluginu ccCreative.
+    usage: /cccreative regen-chunk
+    permission: cccreative.admin

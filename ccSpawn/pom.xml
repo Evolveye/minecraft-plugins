@@ -42,23 +42,17 @@
             <version>${kotlin.version}</version>
             <scope>provided</scope>
         </dependency>
-        <dependency>
-            <groupId>cc.cactu.minecraft</groupId>
-            <artifactId>cc-base</artifactId>
-            <version>1.1-SNAPSHOT</version>
-            <scope>provided</scope>
-        </dependency>
     </dependencies>
 
     <build>
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
+                <filtering>true</filtering>
                 <includes>
                     <include>plugin.yml</include>
                     <include>storage.yml</include>
                 </includes>
-                <filtering>true</filtering>
             </resource>
         </resources>
 

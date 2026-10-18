@@ -14,7 +14,6 @@ import org.bukkit.Material
 import org.bukkit.NamespacedKey
 import org.bukkit.World
 import org.bukkit.attribute.Attribute
-import org.bukkit.block.data.type.SculkShrieker
 import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.*
@@ -32,7 +31,6 @@ import org.bukkit.inventory.meta.FireworkMeta
 import org.bukkit.inventory.meta.Repairable
 import java.io.File
 import java.util.*
-import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
@@ -116,7 +114,10 @@ class CcDimensions : JavaPlugin(), Listener {
         val clickedBlock = event.clickedBlock
 
         if (item?.type == Material.ENDER_EYE) return handleEyeOfEnder( event )
-        if (clickedBlock?.type?.name?.endsWith( "_BED" ) == true && event.action == Action.RIGHT_CLICK_BLOCK) return handleBedUse( event )
+        if (event.action == Action.RIGHT_CLICK_BLOCK) {
+            if (clickedBlock?.type?.name?.endsWith( "_BED" ) == true) return handleIllegalItemUse( event )
+            if (clickedBlock?.type == Material.RESPAWN_ANCHOR) return handleIllegalItemUse( event )
+        }
     }
 
     @EventHandler
@@ -203,6 +204,8 @@ class CcDimensions : JavaPlugin(), Listener {
             if (destroyedCrystals.isEmpty()) return
 
             val spawnLoc = destroyedCrystals.random()
+            spawnLoc.x += 0.5
+            spawnLoc.z += 0.5
 
             world.spawn( spawnLoc, EnderCrystal::class.java ) { it.isShowingBottom = true }
             world.strikeLightningEffect( spawnLoc )
@@ -214,7 +217,7 @@ class CcDimensions : JavaPlugin(), Listener {
                 val players = world.players.filter { it.gameMode == GameMode.SURVIVAL }
                 val player = players.random()
 
-                repeat( ceil( destroyedCrystals.size.toDouble() / 2.0 ).toInt() ) {
+                repeat( destroyedCrystals.size ) {
                     val spawnLoc = player.location.clone().add( Random.nextDouble( 0.0, 3.0 ), 25.0, Random.nextDouble( 0.0, 3.0 ) )
                     val phantom = world.spawn( spawnLoc, Phantom::class.java )
 
@@ -223,10 +226,11 @@ class CcDimensions : JavaPlugin(), Listener {
             }
 
             EnderDragon.Phase.LEAVE_PORTAL -> {
-                if (healthPercent < 40) spawnLightningsInCircle( dragon.location, 20,  6.0 )
-                if (healthPercent < 30) spawnLightningsInCircle( dragon.location, 30, 12.0 )
-                if (healthPercent < 20) spawnLightningsInCircle( dragon.location, 50, 18.0 )
-                if (healthPercent < 10) spawnLightningsInCircle( dragon.location, 75, 24.0 )
+                if (healthPercent < 50) spawnLightningsInCircle( dragon.location, 20,  6.0 )
+                if (healthPercent < 40) spawnLightningsInCircle( dragon.location, 30, 12.0 )
+                if (healthPercent < 30) spawnLightningsInCircle( dragon.location, 50, 18.0 )
+                if (healthPercent < 20) spawnLightningsInCircle( dragon.location, 75, 24.0 )
+                if (healthPercent < 10) spawnLightningsInCircle( dragon.location, 120, 32.0 )
             }
 
             else -> {}
@@ -273,7 +277,7 @@ class CcDimensions : JavaPlugin(), Listener {
     }
 
     @EventHandler
-    fun onFireworkUse(event: PlayerInteractEvent) {
+    fun onFireworkUse( event:PlayerInteractEvent ) {
         val player = event.player
         val item = event.item
 
@@ -380,7 +384,7 @@ class CcDimensions : JavaPlugin(), Listener {
         event.isCancelled = true
     }
 
-    private fun handleBedUse( event:PlayerInteractEvent ) {
+    private fun handleIllegalItemUse( event:PlayerInteractEvent ) {
         val block = event.clickedBlock ?: return
         if (block.world.environment != World.Environment.THE_END) return
         event.isCancelled = true
@@ -431,16 +435,13 @@ class CcDimensions : JavaPlugin(), Listener {
 
     fun getEndCrystalsLocations(): MutableSet<Location> {
         val value = config.getList( "end.crystals" ) as MutableList<Location>?
-        return value?.toMutableSet() ?: mutableSetOf()
+        return value?.map { it.clone() }?.toMutableSet() ?: mutableSetOf()
     }
 
     fun getDestroyedEndCrystalsLocations(): List<Location> {
-        val end = Bukkit.getWorld("world_the_end") ?: return listOf()
+        val end = Bukkit.getWorld( "world_the_end" ) ?: return listOf()
 
         return getEndCrystalsLocations()
-            .filter { loc ->
-                end.getNearbyEntities( loc, 0.0, 64.0, 0.0 )
-                    .none { it is EnderCrystal }
-            }
+            .filter { loc -> end.getNearbyEntities( loc, 0.0, 64.0, 0.0 ).none { it is EnderCrystal } }
     }
 }
