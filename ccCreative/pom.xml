@@ -13,9 +13,9 @@
 
     <properties>
         <java.version>25</java.version>
+        <kotlin.version>2.4.21</kotlin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <kotlin.version>2.3.0</kotlin.version>
-        <maven.compiler.release>25</maven.compiler.release>
+        <maven.compiler.release>21</maven.compiler.release>
     </properties>
 
     <repositories>

@@ -1,0 +1,7 @@
+name: ccQol
+version: '${project.version}'
+main: cc.cactu.minecraft.ccqol.CcQol
+api-version: '26.3'
+description: Quality of life additions
+libraries:
+  - org.jetbrains.kotlin:kotlin-stdlib:${kotlin.version}

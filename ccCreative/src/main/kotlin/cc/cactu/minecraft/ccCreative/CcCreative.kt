@@ -272,36 +272,6 @@ class CcCreative : JavaPlugin(), Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST)
-    fun onBannerEquip( event:InventoryClickEvent ) {
-        if (event.click != ClickType.LEFT && event.click != ClickType.RIGHT) return
-        if (event.slotType != InventoryType.SlotType.ARMOR || event.rawSlot != 5) return
-
-        val player = event.whoClicked as? Player ?: return
-        val bannerInCursor = event.cursor
-        if (!bannerInCursor.type.name.endsWith("_BANNER")) return
-
-        event.isCancelled = true
-
-        val oldHelmet = swapHelmetWithBanner( player, bannerInCursor )
-        event.view.setCursor( oldHelmet )
-    }
-
-    @EventHandler
-    fun onRightClickEquip( event:PlayerInteractEvent ) {
-        if (event.action != Action.RIGHT_CLICK_AIR) return
-        if (event.hand != EquipmentSlot.HAND) return
-
-        val player = event.player
-        val itemInHand = event.item ?: return
-        if (!itemInHand.type.name.endsWith("_BANNER")) return
-
-        event.isCancelled = true
-
-        val oldHelmet = swapHelmetWithBanner( player, itemInHand.clone() )
-        player.inventory.setItemInMainHand( oldHelmet )
-    }
-
     @EventHandler
     fun onCreativePortalUse( event:PlayerPortalEvent ) {
         if (event.player.world.name == creativeWorldName) event.isCancelled = true
@@ -334,17 +304,6 @@ class CcCreative : JavaPlugin(), Listener {
     fun onSelectionToolBreak( event:BlockBreakEvent ) {
         if (event.player.world.name != creativeWorldName) return
         if (event.player.inventory.itemInMainHand.type == selectionTool) event.isCancelled = true
-    }
-
-    private fun swapHelmetWithBanner( player:Player, bannerStack:ItemStack ): ItemStack {
-        val inventory = player.inventory
-        val currentHelmet = inventory.helmet
-
-        inventory.setHelmet( bannerStack )
-
-        player.updateInventory()
-
-        return currentHelmet
     }
 
     fun savePlayerStatus( player:Player, worldName:String ) {
@@ -448,6 +407,7 @@ class CcCreative : JavaPlugin(), Listener {
         attachment.setPermission( "minecraft.command.summon", true )
         attachment.setPermission( "minecraft.command.time", true )
         attachment.setPermission( "minecraft.command.weather", true )
+        attachment.setPermission( "minecraft.command.give", true )
 
         permissionAttachments[ player.uniqueId ] = attachment
 
