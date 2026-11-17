@@ -17,6 +17,10 @@ commands:
   creative:
     description: Przełącza gracza między światem survival a creative.
     permission: cccreative.use
+  gm:
+    description: Zmienia własny tryb gry (tylko na świecie Creative).
+    usage: /gm <creative|survival|adventure|spectator>
+    permission: cccreative.use
   cccreative:
     description: Komendy administracyjne pluginu ccCreative.
     usage: /cccreative regen-chunk

@@ -78,6 +78,13 @@ class CcCreative : JavaPlugin(), Listener {
 
     private val selectionTool = Material.SPECTRAL_ARROW
 
+    private val gameModeAliases = mapOf(
+        "creative" to GameMode.CREATIVE, "c" to GameMode.CREATIVE, "1" to GameMode.CREATIVE,
+        "survival" to GameMode.SURVIVAL, "s" to GameMode.SURVIVAL, "0" to GameMode.SURVIVAL,
+        "adventure" to GameMode.ADVENTURE, "a" to GameMode.ADVENTURE, "2" to GameMode.ADVENTURE,
+        "spectator" to GameMode.SPECTATOR, "sp" to GameMode.SPECTATOR, "3" to GameMode.SPECTATOR,
+    )
+
     override fun onEnable() {
         server.pluginManager.registerEvents( this, this )
         server.pluginManager.registerEvents( TerrainProtection( creativeWorldName, spawnProtectionRange ), this )
@@ -110,6 +117,10 @@ class CcCreative : JavaPlugin(), Listener {
 
         if (command.name.equals( "cccreative", ignoreCase = true )) {
             return handleAdminCommand( sender, args )
+        }
+
+        if (command.name.equals( "gm", ignoreCase = true )) {
+            return handleGameModeCommand( player, args )
         }
 
         if (server.getWorld( creativeWorldName ) == null) {
@@ -152,6 +163,11 @@ class CcCreative : JavaPlugin(), Listener {
     }
 
     override fun onTabComplete( sender:CommandSender, command:Command, alias:String, args:Array<out String> ): List<String>? {
+        if (command.name.equals( "gm", ignoreCase = true )) {
+            return if (args.size == 1) listOf( "creative", "survival", "adventure", "spectator" ).filter { it.startsWith( args[0], ignoreCase = true ) }
+                else emptyList()
+        }
+
         if (!command.name.equals( "cccreative", ignoreCase = true )) return null
         if (!sender.hasPermission( "cccreative.admin" )) return emptyList()
 
@@ -202,12 +218,16 @@ class CcCreative : JavaPlugin(), Listener {
         val player = event.player
         if (internalTeleports.contains( player.uniqueId )) return
 
+        val wasInCreative = isCreativeZone( event.from )
         val inCreative = isCreativeZone( player.world )
 
-        if (inCreative && player.gameMode != GameMode.CREATIVE) {
+        if (wasInCreative == inCreative) return
+
+        // Entering always starts in creative, leaving always ends in survival, whatever mode was picked with /gm.
+        if (inCreative) {
             player.gameMode = GameMode.CREATIVE
             grantCreativePermissions( player )
-        } else if (!inCreative && player.gameMode == GameMode.CREATIVE) {
+        } else {
             revokeCreativePermissions( player )
             player.gameMode = GameMode.SURVIVAL
         }
@@ -281,7 +301,7 @@ class CcCreative : JavaPlugin(), Listener {
     fun onSelectionTool( event:PlayerInteractEvent ) {
         val player = event.player
 
-        if (player.world.name != creativeWorldName) return
+        if (player.gameMode != GameMode.CREATIVE) return
         if (event.hand != EquipmentSlot.HAND) return
         if (event.item?.type != selectionTool) return
 
@@ -302,7 +322,7 @@ class CcCreative : JavaPlugin(), Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     fun onSelectionToolBreak( event:BlockBreakEvent ) {
-        if (event.player.world.name != creativeWorldName) return
+        if (event.player.gameMode != GameMode.CREATIVE) return
         if (event.player.inventory.itemInMainHand.type == selectionTool) event.isCancelled = true
     }
 
@@ -474,6 +494,25 @@ class CcCreative : JavaPlugin(), Listener {
             }
             else -> sender.sendMessage( "§eUżycie: /cccreative regen-chunk" )
         }
+
+        return true
+    }
+
+    private fun handleGameModeCommand( player:Player, args:Array<out String> ): Boolean {
+        if (!isCreativeZone( player.world )) {
+            player.sendMessage( "§cTryb gry możesz zmieniać tylko na świecie Creative." )
+            return true
+        }
+
+        val gameMode = gameModeAliases[ args.firstOrNull()?.lowercase() ]
+
+        if (gameMode == null) {
+            player.sendMessage( "§eUżycie: /gm <creative|survival|adventure|spectator>" )
+            return true
+        }
+
+        player.gameMode = gameMode
+        player.sendMessage( "§aTryb gry zmieniony na ${gameMode.name.lowercase()}." )
 
         return true
     }
