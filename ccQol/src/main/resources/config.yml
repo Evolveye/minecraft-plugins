@@ -1,0 +1,50 @@
+tombstone:
+  # Chance for each remaining item to go into the tomb chest.
+  # Valuable items from armor, offhand and hotbar always go into it.
+  extra-items-chance: 0.5
+
+  # Seconds needed to break a tomb sign with an diamond axe with Efficiency IV (other tools are slower or faster).
+  # Creative mode breaks it instantly.
+  sign-break-seconds: 60
+
+  # A tomb is created only when the drops contain an item of one of these rarities
+  # (enchanting raises rarity: common/uncommon -> rare, rare -> epic)...
+  valuable-rarities: [ RARE, EPIC ]
+
+  # ...or at least the given total amount of items matching a material pattern (* matches any text).
+  valuable-items:
+    "FILLED_MAP": 1
+    "DIAMOND_*": 1
+    "NETHERITE_*": 1
+    "DIAMOND": 8
+
+heads:
+  # Catalog of decorative heads (https://github.com/TheSilentPro/heads, CC0), with the same IDs as minecraft-heads.com.
+  # Heads preview: https://headsdb.com/?perPage=48
+  catalog-url: "https://raw.githubusercontent.com/TheSilentPro/heads/main/heads.json"
+
+  # Days after which the downloaded catalog is downloaded again.
+  refresh-days: 7
+
+  # Experience levels for turning a stack of heads into another head in an anvil (at least 1).
+  anvil-cost: 1
+
+  # Texture of the blank head: catalog head #20380 "Cloth Mannequin".
+  blank-head-texture: "111314ea76bf86857ead0e7aabbb3167946f680cf53be198d3368f6e5b8a3e90"
+
+mannequins:
+  # Health of a mannequin (2 = one heart).
+  health: 6
+
+  # Right-clicking a mannequin with these items makes it larger or smaller, using up one item.
+  grow-item: RED_MUSHROOM
+  shrink-item: BROWN_MUSHROOM
+
+  # Right-clicking a mannequin with these items changes its pose or turns floating on and off, without using the item up.
+  pose-item: BRUSH
+  float-item: PHANTOM_MEMBRANE
+
+  # Size change per item, and the size limits (1 = normal size).
+  scale-step: 0.1
+  min-scale: 0.5
+  max-scale: 1.5
