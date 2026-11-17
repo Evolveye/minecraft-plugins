@@ -1,0 +1,8 @@
+# Protection against join/quit spam of rapidly reconnecting players.
+join-quit-throttle:
+  # How many join/quit events of one player are reported right away within the window.
+  max-events: 2
+  # Length of that window.
+  window-seconds: 60
+  # After the limit is hit, how long the player has to stay calm before the final state is reported.
+  quiet-seconds: 30

@@ -1,0 +1,9 @@
+name: ccReporter
+version: '${project.version}'
+main: cc.cactu.minecraft.ccreporter.CcReporter
+api-version: '26.3'
+description: Reports server events (advancements, deaths, joins, quits) to the backend through ccApiLink
+depend:
+  - ccApiLink
+libraries:
+  - org.jetbrains.kotlin:kotlin-stdlib:${kotlin.version}

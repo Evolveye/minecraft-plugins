@@ -1,0 +1,7 @@
+name: ccApiLink
+version: '${project.version}'
+main: cc.cactu.minecraft.ccapilink.CcApiLink
+api-version: '26.3'
+description: Connection between the Minecraft server and the external backend API
+libraries:
+  - org.jetbrains.kotlin:kotlin-stdlib:${kotlin.version}

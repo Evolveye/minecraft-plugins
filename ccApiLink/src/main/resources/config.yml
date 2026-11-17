@@ -1,0 +1,5 @@
+# Origin of the external backend (scheme, host and port, without a path).
+backend-origin: http://localhost:3001
+
+# Timeout of a single request to the backend.
+request-timeout-seconds: 5
