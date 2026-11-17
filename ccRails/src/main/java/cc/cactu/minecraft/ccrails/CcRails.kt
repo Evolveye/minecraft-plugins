@@ -8,6 +8,7 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import net.kyori.adventure.title.Title
 import org.apache.commons.lang3.tuple.MutableTriple
 import org.bukkit.Bukkit
+import org.bukkit.GameEvent
 import org.bukkit.GameMode
 import org.bukkit.Location
 import org.bukkit.Material
@@ -86,6 +87,7 @@ class CcRails : JavaPlugin(), Listener {
     private val straitRoadMaxSpeed = 1.4
     private val diagonalRoadMaxSpeed = 0.9
     private val ascendingRoadMaxSpeed = 0.5
+    private val noteblockPulseTicks = 10L
 
     // Oczyszczanie grafu z elementów, których nie ma już w świecie
     private val graphCleanupBatchSize = 10
@@ -857,6 +859,22 @@ class CcRails : JavaPlugin(), Listener {
         return null
     }
 
+    fun pulseNoteblock( noteblock:Block ) {
+        val poweredData = noteblock.blockData as? NoteBlock ?: return
+        if (poweredData.isPowered) return
+
+        poweredData.isPowered = true
+        noteblock.blockData = poweredData
+
+        server.scheduler.runTaskLater( this, Runnable {
+            val unpoweredData = noteblock.blockData as? NoteBlock ?: return@Runnable
+            if (!unpoweredData.isPowered || noteblock.isBlockIndirectlyPowered) return@Runnable
+
+            unpoweredData.isPowered = false
+            noteblock.blockData = unpoweredData
+        }, noteblockPulseTicks )
+    }
+
     fun handleActivatorRails( event:VehicleMoveEvent, vehicleData:VehicleData, railBlock:Block ):Boolean {
         val vehicle = event.vehicle as Minecart
         val passenger = vehicle.passengers.firstOrNull()
@@ -915,6 +933,8 @@ class CcRails : JavaPlugin(), Listener {
 
         val noteblockData = noteblock.blockData as NoteBlock
         noteblock.world.playNote( noteblock.location, noteblockData.instrument, noteblockData.note )
+        noteblock.world.sendGameEvent( passenger, GameEvent.NOTE_BLOCK_PLAY, noteblock.location.toCenterLocation().toVector() )
+        pulseNoteblock( noteblock )
 
         vehicleDataset.remove( event.vehicle.uniqueId )
         vehicle.velocity = Vector( 0, 0, 0 )
