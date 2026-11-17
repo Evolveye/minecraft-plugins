@@ -1,0 +1,20 @@
+name: ccSatellite
+version: '${project.version}'
+main: cc.cactu.minecraft.ccsatellite.CcSatellite
+api-version: '26.3'
+description: Satellite radar - player built stations scan the terrain around them into a top-down image for the backend
+depend:
+  - ccApiLink
+libraries:
+  - org.jetbrains.kotlin:kotlin-stdlib:${kotlin.version}
+commands:
+  satellite:
+    description: Manages the satellite stations
+    usage: |-
+      /<command> scan - runs the satellites now
+      /<command> list - lists registered stations
+    permission: ccsatellite.admin
+permissions:
+  ccsatellite.admin:
+    description: Allows running satellites by hand and listing stations
+    default: op

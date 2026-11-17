@@ -1,0 +1,16 @@
+# Scan radius (in blocks) added by each complete copper ring around a station's amethyst block.
+radius-per-ring: 16
+
+# Rings beyond this count don't extend the radius any further.
+max-rings: 16
+
+# A new station can't be registered within this many blocks (horizontally) of another one in the same world,
+# so players extend existing stations with bigger rings instead of building many small ones.
+min-station-distance: 128
+
+# Satellites run when the last player leaves the server, but not more often than this.
+min-run-interval-minutes: 15
+
+# Largest image side in pixels (1 pixel = 1 block). A world whose stations spread wider is skipped.
+# Memory needed while rendering is about 16 bytes per pixel (4096 -> ~270 MB).
+max-image-size: 4096
